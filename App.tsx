@@ -1,12 +1,3 @@
-// /App.tsx
-import React from 'react';
-import { AuthProvider } from './src/providers/AuthProvider';
-import RootNav from './src/routes/RootNav';
+// App.tsx
+export { default } from "expo-router/entry";
 
-export default function App() {
-    return (
-        <AuthProvider>
-            <RootNav />
-        </AuthProvider>
-    );
-}

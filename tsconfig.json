@@ -3,12 +3,14 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]
+    },
+    "types": ["expo-router/types", "react", "react-native"]
   },
   "include": [
+    "app",
+    "src",
+    "src/types",
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",

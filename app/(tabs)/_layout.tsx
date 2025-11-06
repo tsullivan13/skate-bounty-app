@@ -1,35 +1,22 @@
-import { Tabs } from 'expo-router';
+// app/(tabs)/_layout.tsx
+import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
+import { useAuth } from '../../src/providers/AuthProvider';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function TabsLayout() {
+  const { session, loading } = useAuth();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  if (loading) return null;
+  if (!session) return <Redirect href="/login" />;
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+    <Tabs>
       <Tabs.Screen
         name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
+        options={{ title: 'Home', headerTitle: 'Skate Bounty' }}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+      {/* You can keep or remove Explore for now */}
+      {/* <Tabs.Screen name="explore" options={{ title: 'Explore' }} /> */}
     </Tabs>
   );
 }

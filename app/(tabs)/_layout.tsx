@@ -6,17 +6,39 @@ import { useAuth } from "../../src/providers/AuthProvider";
 export default function TabsLayout() {
   const { session, loading } = useAuth();
 
+  // Waiting for session check
   if (loading) return null;
-  if (!session) return <Redirect href="/login" />; // <- matches your folder tree
+
+  // Redirect unauthenticated users to login
+  if (!session) return <Redirect href="/login" />;
 
   return (
-    <Tabs>
+    <Tabs
+      screenOptions={{
+        headerTitleAlign: "center",
+      }}
+    >
       <Tabs.Screen
         name="index"
-        options={{ title: "Home", headerTitle: "Skate Bounty" }}
+        options={{
+          title: "Home",
+          headerTitle: "Skate Bounty",
+        }}
       />
-      {/* Keep or remove Explore as you like */}
-      {/* <Tabs.Screen name="explore" options={{ title: "Explore" }} /> */}
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: "Create",
+          headerTitle: "Create Bounty",
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          headerTitle: "My Profile",
+        }}
+      />
     </Tabs>
   );
 }

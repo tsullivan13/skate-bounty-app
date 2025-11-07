@@ -1,3 +1,4 @@
+// src/lib/bounties.ts
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -38,4 +39,39 @@ export async function fetchBounties(): Promise<Bounty[]> {
 
     if (error) throw error;
     return data as Bounty[];
+}
+
+export function subscribeBounties(
+    onInsert: (row: Bounty) => void,
+    onUpdate?: (row: Bounty) => void,
+    onDelete?: (row: Bounty) => void
+) {
+    const channel = supabase
+        .channel("bounties-realtime")
+        .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "bounties" },
+            (payload) => {
+                onInsert(payload.new as Bounty);
+            }
+        )
+        .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "bounties" },
+            (payload) => {
+                onUpdate?.(payload.new as Bounty);
+            }
+        )
+        .on(
+            "postgres_changes",
+            { event: "DELETE", schema: "public", table: "bounties" },
+            (payload) => {
+                onDelete?.(payload.old as Bounty);
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
 }

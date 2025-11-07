@@ -8,7 +8,6 @@ export type Profile = {
     created_at: string;
 };
 
-// Get current user's profile (may be null the first time)
 export async function getMyProfile(session: Session): Promise<Profile | null> {
     const { data, error } = await supabase
         .from("profiles")
@@ -20,7 +19,6 @@ export async function getMyProfile(session: Session): Promise<Profile | null> {
     return (data as Profile) ?? null;
 }
 
-// Upsert (create/update) current user's profile handle
 export async function upsertMyHandle(session: Session, handle: string) {
     const { data, error } = await supabase
         .from("profiles")

@@ -1,6 +1,6 @@
 // app/(tabs)/profile.tsx
 import React, { useEffect, useState } from "react";
-import { Alert, Button, StyleSheet, Text, TextInput, View } from "react-native";
+import { Button, StyleSheet, Text, TextInput, View } from "react-native";
 import { getMyProfile, Profile, upsertMyHandle } from "../../src/lib/profiles";
 import { useAuth } from "../../src/providers/AuthProvider";
 
@@ -10,16 +10,22 @@ export default function ProfileTab() {
     const [handle, setHandle] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
     useEffect(() => {
         if (!session) return;
         (async () => {
+            setErrorMsg(null);
+            setSaveMsg(null);
+            setLoading(true);
             try {
                 const p = await getMyProfile(session);
                 setProfile(p);
                 setHandle(p?.handle ?? "");
-            } catch (e) {
+            } catch (e: any) {
                 console.log("Load profile error:", e);
+                setErrorMsg(e?.message ?? "Failed to load profile. Did you create the 'profiles' table and refresh API schema?");
             } finally {
                 setLoading(false);
             }
@@ -27,59 +33,65 @@ export default function ProfileTab() {
     }, [session]);
 
     const save = async () => {
+        setErrorMsg(null);
+        setSaveMsg(null);
         try {
-            if (!session) return;
+            if (!session) {
+                setErrorMsg("Not signed in.");
+                return;
+            }
             const trimmed = handle.trim();
             if (!trimmed) {
-                Alert.alert("Handle required", "Please enter a handle.");
+                setErrorMsg("Please enter a handle.");
                 return;
             }
             if (!/^[a-zA-Z0-9_]{3,20}$/.test(trimmed)) {
-                Alert.alert("Invalid handle", "Use 3–20 letters, numbers, or underscore.");
+                setErrorMsg("Use 3–20 letters, numbers, or underscore.");
                 return;
             }
             setSaving(true);
             const p = await upsertMyHandle(session, trimmed);
             setProfile(p);
-            Alert.alert("Saved", "Your handle has been updated.");
+            setSaveMsg("Saved.");
         } catch (e: any) {
-            Alert.alert("Error", e?.message ?? "Failed to save handle.");
             console.log("Save profile error:", e);
+            setErrorMsg(e?.message ?? "Failed to save handle.");
         } finally {
             setSaving(false);
         }
     };
 
-    if (loading) {
-        return (
-            <View style={styles.container}>
-                <Text>Loading profile…</Text>
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
             <Text style={styles.title}>My Profile</Text>
-            <Text>Email: {session?.user?.email}</Text>
-            <Text>User ID: {session?.user?.id}</Text>
 
-            <View style={{ height: 16 }} />
+            {loading ? (
+                <Text>Loading profile…</Text>
+            ) : (
+                <>
+                    <Text>Email: {session?.user?.email}</Text>
+                    <Text>User ID: {session?.user?.id}</Text>
 
-            <Text style={{ fontWeight: "600" }}>Handle</Text>
-            <TextInput
-                placeholder="e.g., tim_skates"
-                value={handle}
-                onChangeText={setHandle}
-                autoCapitalize="none"
-                style={styles.input}
-            />
+                    <View style={{ height: 16 }} />
 
-            <Button title={saving ? "Saving..." : "Save"} onPress={save} disabled={saving} />
+                    <Text style={{ fontWeight: "600" }}>Handle</Text>
+                    <TextInput
+                        placeholder="e.g., tim_skates"
+                        value={handle}
+                        onChangeText={setHandle}
+                        autoCapitalize="none"
+                        style={styles.input}
+                    />
 
-            <View style={{ height: 24 }} />
+                    <Button title={saving ? "Saving..." : "Save"} onPress={save} disabled={saving} />
 
-            <Button title="Sign Out" onPress={signOut} />
+                    {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
+                    {saveMsg ? <Text style={styles.success}>{saveMsg}</Text> : null}
+
+                    <View style={{ height: 24 }} />
+                    <Button title="Sign Out" onPress={signOut} />
+                </>
+            )}
         </View>
     );
 }
@@ -88,4 +100,6 @@ const styles = StyleSheet.create({
     container: { padding: 24, gap: 12, flex: 1 },
     title: { fontSize: 24, fontWeight: "700" },
     input: { borderWidth: 1, borderRadius: 8, padding: 12 },
+    error: { color: "#b00020", marginTop: 8 },
+    success: { color: "#0a7", marginTop: 8 },
 });

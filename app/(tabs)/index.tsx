@@ -1,11 +1,21 @@
 // app/(tabs)/index.tsx
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Bounty, fetchBounties, subscribeBounties } from "../../src/lib/bounties";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
 
 export default function HomeTab() {
+  const router = useRouter();
   const { session } = useAuth();
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,24 +86,34 @@ export default function HomeTab() {
           data={filtered}
           keyExtractor={(b) => b.id}
           renderItem={({ item }) => {
-            const spot = item as any;
-            const s = item && (item as any).spot_id ? spotById.get((item as any).spot_id as string) : undefined;
+            const s =
+              (item as any).spot_id
+                ? spotById.get((item as any).spot_id as string)
+                : undefined;
+
             return (
-              <View style={styles.card}>
+              <Pressable
+                onPress={() => router.push(`/bounty/${item.id}`)}
+                style={styles.card}
+              >
                 <View style={{ flexDirection: "row", gap: 12 }}>
-                  {item as any && (item as any).image_url ? (
-                    <Image source={{ uri: (item as any).image_url as string }} style={{ width: 72, height: 72, borderRadius: 8 }} />
+                  {(item as any).image_url ? (
+                    <Image
+                      source={{ uri: (item as any).image_url as string }}
+                      style={{ width: 72, height: 72, borderRadius: 8 }}
+                    />
                   ) : null}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.trick}>{item.trick}</Text>
                     <Text style={styles.reward}>Reward: ${item.reward}</Text>
                     <Text style={styles.meta}>
                       {s ? `@ ${s.title} • ` : ""}
-                      by {item.user_id.slice(0, 6)}… • {new Date(item.created_at).toLocaleString()}
+                      by {item.user_id.slice(0, 6)}… •{" "}
+                      {new Date(item.created_at).toLocaleString()}
                     </Text>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             );
           }}
         />

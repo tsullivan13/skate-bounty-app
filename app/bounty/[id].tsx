@@ -3,486 +3,497 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    FlatList,
     KeyboardAvoidingView,
     Platform,
-    Pressable,
+    ScrollView,
+    StyleSheet,
     Text,
     TextInput,
+    TouchableOpacity,
     View,
 } from 'react-native';
-import { supabase } from '../../src/lib/supabase';
-// adjust if your path differs
-import { assertPostedAfter, normalizeInstagramUrl } from '../../src/lib/validators';
+import { supabase } from '../../src/lib/supabase'; // <-- adjust path if needed
+
+// ---- Minimal runtime types (kept local to avoid touching other files) ----
+type UUID = string;
 
 type Bounty = {
-    id: string;
-    title: string;
-    description: string | null;
+    id: UUID;
+    user_id?: UUID | null;
+    trick?: string | null;
+    reward?: string | null;
     created_at: string;
-    expires_at: string | null;
-    spot_id: string | null;
+    spot_id?: UUID | null;
+    expires_at?: string | null;
 };
 
 type Submission = {
-    id: string;
-    user_id: string;
-    external_url: string | null;
-    external_posted_at: string | null;
+    id: UUID;
+    bounty_id: UUID;
+    user_id: UUID;
+    media_url: string | null;
+    caption?: string | null;
+    status?: string | null;
     created_at: string;
-    votes: number;
-    votedByMe: boolean;
+    external_posted_at?: string | null;
 };
 
-export default function BountyDetailScreen() {
+type SubmissionWithVotes = Submission & { vote_count?: number | null };
+
+type Acceptance = {
+    id: UUID;
+    bounty_id: UUID;
+    user_id: UUID;
+    created_at: string;
+};
+
+// Instagram URL pattern (same as DB check for good UX errors)
+const IG_URL_RE =
+    /^https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\/[A-Za-z0-9_-]+\/?/i;
+
+function fmt(d?: string | null) {
+    if (!d) return '';
+    const t = new Date(d);
+    return isNaN(t.getTime()) ? d : t.toLocaleString();
+}
+
+export default function BountyDetail() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
+    const bountyId = useMemo(() => (Array.isArray(id) ? id[0] : id), [id]);
 
+    const [me, setMe] = useState<{ id: UUID } | null>(null);
     const [bounty, setBounty] = useState<Bounty | null>(null);
-    const [submissions, setSubmissions] = useState<Submission[]>([]);
-    const [acceptedByMe, setAcceptedByMe] = useState(false);
-    const [submittedByMe, setSubmittedByMe] = useState(false);
-
+    const [accepted, setAccepted] = useState<boolean>(false);
+    const [mySubmission, setMySubmission] = useState<Submission | null>(null);
+    const [submissions, setSubmissions] = useState<SubmissionWithVotes[]>([]);
+    const [votedIds, setVotedIds] = useState<Set<UUID>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [accepting, setAccepting] = useState(false);
-    const [votingId, setVotingId] = useState<string | null>(null);
-    const [submitting, setSubmitting] = useState(false);
 
-    const [instaUrl, setInstaUrl] = useState('');
-    const [postedAtISO, setPostedAtISO] = useState(''); // ISO 8601 like 2025-11-08T10:00:00Z or just 2025-11-08
+    // form state
+    const [igUrl, setIgUrl] = useState('');
+    const [postedAt, setPostedAt] = useState(''); // ISO date string: 2025-11-01T20:45:00Z
 
-    const [userId, setUserId] = useState<string | null>(null);
-
-    const isOpen = useMemo(() => {
-        if (!bounty?.expires_at) return true;
-        return new Date(bounty.expires_at) > new Date();
-    }, [bounty?.expires_at]);
-
-    const showError = (title: string, message: string) => Alert.alert(title, message);
-
-    const fetchUser = useCallback(async () => {
+    // ------------------ Load current user ------------------
+    const loadMe = useCallback(async () => {
         const { data, error } = await supabase.auth.getUser();
-        if (error) return showError('Auth error', error.message);
-        setUserId(data.user?.id ?? null);
+        if (error) {
+            console.warn('[auth.getUser] error', error);
+            setMe(null);
+            return null;
+        }
+        const user = data?.user ?? null;
+        setMe(user ? { id: user.id as UUID } : null);
+        return user ? { id: user.id as UUID } : null;
     }, []);
 
-    const fetchBounty = useCallback(async (bountyId: string) => {
-        // Get bounty
-        const { data, error } = await supabase
-            .from('bounties')
-            .select(
-                'id, title, description, created_at, expires_at, spot_id'
-            )
-            .eq('id', bountyId)
-            .single();
+    // ------------------ Load bounty + related ------------------
+    const loadAll = useCallback(async () => {
+        if (!bountyId) return;
+        setLoading(true);
 
-        if (error) throw error;
-        return data as Bounty;
-    }, []);
-
-    const fetchAcceptedByMe = useCallback(async (bountyId: string, uid: string | null) => {
-        if (!uid) return false;
-        const { data, error } = await supabase
-            .from('bounty_acceptances')
-            .select('id')
-            .eq('bounty_id', bountyId)
-            .eq('user_id', uid)
-            .limit(1);
-        if (error) throw error;
-        return (data?.length ?? 0) > 0;
-    }, []);
-
-    const fetchSubmittedByMe = useCallback(async (bountyId: string, uid: string | null) => {
-        if (!uid) return false;
-        const { data, error } = await supabase
-            .from('submissions')
-            .select('id')
-            .eq('bounty_id', bountyId)
-            .eq('user_id', uid)
-            .limit(1);
-        if (error) throw error;
-        return (data?.length ?? 0) > 0;
-    }, []);
-
-    const fetchSubmissions = useCallback(async (bountyId: string, uid: string | null) => {
-        // Pull submissions and the full list of vote user_ids so we can compute votedByMe
-        const { data, error } = await supabase
-            .from('submissions')
-            .select(`
-        id, user_id, external_url, external_posted_at, created_at,
-        submission_votes ( user_id )
-      `)
-            .eq('bounty_id', bountyId)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        const mapped: Submission[] = (data ?? []).map((row: any) => {
-            const voters: { user_id: string }[] = row.submission_votes ?? [];
-            const votes = voters.length;
-            const votedByMe = !!uid && voters.some((v) => v.user_id === uid);
-            return {
-                id: row.id,
-                user_id: row.user_id,
-                external_url: row.external_url,
-                external_posted_at: row.external_posted_at,
-                created_at: row.created_at,
-                votes,
-                votedByMe,
-            };
-        });
-
-        return mapped;
-    }, []);
-
-    const refresh = useCallback(async () => {
-        if (!id) return;
         try {
-            setLoading(true);
-            await fetchUser();
-            // Give auth a tick to settle on native
-            const uid = (await supabase.auth.getUser()).data.user?.id ?? null;
+            const currentUser = me ?? (await loadMe());
 
-            const [b, a, s, list] = await Promise.all([
-                fetchBounty(id),
-                fetchAcceptedByMe(id, uid),
-                fetchSubmittedByMe(id, uid),
-                fetchSubmissions(id, uid),
-            ]);
+            // 1) Bounty
+            const { data: bnty, error: bErr } = await supabase
+                .from('bounties')
+                .select('*')
+                .eq('id', bountyId)
+                .single<Bounty>();
 
-            setBounty(b);
-            setAcceptedByMe(a);
-            setSubmittedByMe(s);
-            setSubmissions(list);
-        } catch (e: any) {
-            showError('Load failed', e?.message ?? 'Unknown error');
+            if (bErr) throw bErr;
+            setBounty(bnty);
+
+            // 2) Have I accepted?
+            if (currentUser) {
+                const { data: acc, error: aErr } = await supabase
+                    .from('bounty_acceptances')
+                    .select('id')
+                    .eq('bounty_id', bountyId)
+                    .eq('user_id', currentUser.id)
+                    .limit(1);
+
+                if (aErr) throw aErr;
+                setAccepted((acc?.length ?? 0) > 0);
+            } else {
+                setAccepted(false);
+            }
+
+            // 3) My submission (one per user per bounty)
+            if (currentUser) {
+                const { data: mine, error: mErr } = await supabase
+                    .from('submissions')
+                    .select('*')
+                    .eq('bounty_id', bountyId)
+                    .eq('user_id', currentUser.id)
+                    .limit(1);
+
+                if (mErr) throw mErr;
+                setMySubmission(mine?.[0] ?? null);
+            } else {
+                setMySubmission(null);
+            }
+
+            // 4) All submissions for this bounty w/ vote counts
+            // Prefer the view v_submissions_with_votes if present. If not, we’ll fallback to raw table + local count.
+            let subs: SubmissionWithVotes[] = [];
+            {
+                const { data, error } = await supabase
+                    .from('v_submissions_with_votes')
+                    .select('*')
+                    .eq('bounty_id', bountyId)
+                    .order('vote_count', { ascending: false })
+                    .order('created_at', { ascending: true });
+
+                if (!error && Array.isArray(data)) {
+                    subs = data as SubmissionWithVotes[];
+                } else {
+                    // fallback to submissions then compute counts
+                    const { data: sData, error: sErr } = await supabase
+                        .from('submissions')
+                        .select('*')
+                        .eq('bounty_id', bountyId)
+                        .order('created_at', { ascending: true });
+                    if (sErr) throw sErr;
+                    subs = (sData as Submission[]).map((s) => ({ ...s, vote_count: 0 }));
+                    // pull counts
+                    const ids = subs.map((s) => s.id);
+                    if (ids.length) {
+                        const { data: votesAll, error: vErr } = await supabase
+                            .from('submission_votes')
+                            .select('submission_id');
+                        if (vErr) throw vErr;
+                        const counts = new Map<UUID, number>();
+                        for (const row of votesAll ?? []) {
+                            const sid = row.submission_id as UUID;
+                            counts.set(sid, (counts.get(sid) ?? 0) + 1);
+                        }
+                        subs = subs.map((s) => ({
+                            ...s,
+                            vote_count: counts.get(s.id) ?? 0,
+                        }));
+                    }
+                }
+            }
+            setSubmissions(subs);
+
+            // 5) Which submissions did I vote for?
+            if (currentUser && subs.length) {
+                const ids = subs.map((s) => s.id);
+                const { data: myVotes, error: mvErr } = await supabase
+                    .from('submission_votes')
+                    .select('submission_id')
+                    .in('submission_id', ids)
+                    .eq('user_id', currentUser.id);
+
+                if (mvErr) throw mvErr;
+                setVotedIds(new Set((myVotes ?? []).map((r) => r.submission_id as UUID)));
+            } else {
+                setVotedIds(new Set());
+            }
+        } catch (err: any) {
+            console.error('[loadAll]', err);
+            Alert.alert('Error', err?.message ?? 'Failed to load bounty');
         } finally {
             setLoading(false);
         }
-    }, [id, fetchBounty, fetchAcceptedByMe, fetchSubmittedByMe, fetchSubmissions, fetchUser]);
+    }, [bountyId, me, loadMe]);
 
     useEffect(() => {
-        refresh();
-    }, [refresh]);
+        loadAll();
+    }, [loadAll]);
 
+    // ------------------ Mutations ------------------
     const onAccept = useCallback(async () => {
-        if (!id) return;
-        if (!userId) {
-            return showError('Sign in required', 'Please sign in to accept this bounty.');
-        }
+        if (!bountyId) return;
         try {
-            setAccepting(true);
-            const { error } = await supabase.rpc('rpc_accept_bounty', { p_bounty: id });
+            const { error } = await supabase.rpc('rpc_accept_bounty', {
+                p_bounty: bountyId,
+            });
             if (error) throw error;
-            setAcceptedByMe(true);
-        } catch (e: any) {
-            showError('Could not accept', e?.message ?? 'Unknown error');
-        } finally {
-            setAccepting(false);
+            setAccepted(true);
+            Alert.alert('Accepted', 'You accepted this bounty.');
+        } catch (err: any) {
+            Alert.alert('Error', err?.message ?? 'Could not accept bounty');
         }
-    }, [id, userId]);
+    }, [bountyId]);
 
     const onSubmitProof = useCallback(async () => {
-        if (!id || !bounty) return;
-        if (!userId) {
-            return showError('Sign in required', 'Please sign in to submit proof.');
+        if (!bountyId) return;
+        const url = igUrl.trim();
+        const iso = postedAt.trim();
+
+        if (!url) return Alert.alert('Validation', 'Paste your Instagram post URL.');
+        if (!IG_URL_RE.test(url))
+            return Alert.alert('Validation', 'That does not look like a valid Instagram post/reel/tv URL.');
+
+        if (!iso) {
+            return Alert.alert(
+                'Validation',
+                'Enter the post date/time in ISO format, e.g. 2025-11-01T20:45:00Z'
+            );
         }
+        const dt = new Date(iso);
+        if (isNaN(dt.getTime())) {
+            return Alert.alert('Validation', 'Posted date is not a valid ISO timestamp.');
+        }
+
         try {
-            setSubmitting(true);
-            const clean = normalizeInstagramUrl(instaUrl);
-            // If user typed a date like "2025-11-08" convert to ISO midnight local
-            const iso = (() => {
-                if (!postedAtISO) return '';
-                // If it already looks like ISO with time, keep it
-                if (postedAtISO.includes('T')) return new Date(postedAtISO).toISOString();
-                // Convert yyyy-mm-dd to ISO at noon UTC to avoid timezone off-by-one
-                const d = new Date(`${postedAtISO}T12:00:00Z`);
-                return d.toISOString();
-            })();
-
-            assertPostedAfter(bounty.created_at, iso);
-
             const { data, error } = await supabase.rpc('rpc_submit_proof', {
-                p_bounty: bounty.id,
-                p_external_url: clean,
+                p_bounty: bountyId,
+                p_media_url: url,
                 p_external_posted_at: iso,
             });
             if (error) throw error;
-
-            // Clear inputs, refresh list
-            setInstaUrl('');
-            setPostedAtISO('');
-            setSubmittedByMe(true);
-            await refresh();
-        } catch (e: any) {
-            showError('Submit failed', e?.message ?? 'Unknown error');
-        } finally {
-            setSubmitting(false);
+            setMySubmission(data as Submission);
+            setIgUrl('');
+            setPostedAt('');
+            Alert.alert('Success', 'Submission saved.');
+            // refresh list
+            await loadAll();
+        } catch (err: any) {
+            Alert.alert('Submission failed', err?.message ?? 'Could not submit proof.');
         }
-    }, [bounty, id, instaUrl, postedAtISO, refresh, userId]);
+    }, [bountyId, igUrl, postedAt, loadAll]);
 
     const onVote = useCallback(
-        async (submissionId: string) => {
-            if (!userId) return showError('Sign in required', 'Please sign in to vote.');
+        async (submissionId: UUID) => {
             try {
-                setVotingId(submissionId);
-                const { error } = await supabase.rpc('rpc_vote_submission', { p_submission: submissionId });
+                const { error } = await supabase.rpc('rpc_vote_submission', {
+                    p_submission: submissionId,
+                });
                 if (error) throw error;
-                // Optimistic update
+                // update UI quickly
+                setVotedIds((prev) => new Set(prev).add(submissionId));
                 setSubmissions((prev) =>
                     prev.map((s) =>
-                        s.id === submissionId ? { ...s, votedByMe: true, votes: s.votes + 1 } : s
+                        s.id === submissionId
+                            ? { ...s, vote_count: (s.vote_count ?? 0) + 1 }
+                            : s
                     )
                 );
-            } catch (e: any) {
-                showError('Vote failed', e?.message ?? 'Unknown error');
-            } finally {
-                setVotingId(null);
+            } catch (err: any) {
+                Alert.alert('Vote failed', err?.message ?? 'Could not vote.');
             }
         },
-        [userId]
+        []
     );
 
     const onUnvote = useCallback(
-        async (submissionId: string) => {
-            if (!userId) return showError('Sign in required', 'Please sign in to unvote.');
+        async (submissionId: UUID) => {
             try {
-                setVotingId(submissionId);
-                const { error } = await supabase.rpc('rpc_unvote_submission', { p_submission: submissionId });
+                const { error } = await supabase.rpc('rpc_unvote_submission', {
+                    p_submission: submissionId,
+                });
                 if (error) throw error;
-                // Optimistic update
+                const next = new Set(votedIds);
+                next.delete(submissionId);
+                setVotedIds(next);
                 setSubmissions((prev) =>
                     prev.map((s) =>
-                        s.id === submissionId ? { ...s, votedByMe: false, votes: Math.max(0, s.votes - 1) } : s
+                        s.id === submissionId
+                            ? { ...s, vote_count: Math.max(0, (s.vote_count ?? 0) - 1) }
+                            : s
                     )
                 );
-            } catch (e: any) {
-                showError('Unvote failed', e?.message ?? 'Unknown error');
-            } finally {
-                setVotingId(null);
+            } catch (err: any) {
+                Alert.alert('Unvote failed', err?.message ?? 'Could not remove vote.');
             }
         },
-        [userId]
+        [votedIds]
     );
 
-    const Header = () => {
-        if (!bounty) return null;
+    // ------------------ Render ------------------
+    if (!bountyId) {
         return (
-            <View style={{ padding: 16, gap: 10 }}>
-                <Text style={{ color: 'white', fontSize: 22, fontWeight: '800' }}>{bounty.title}</Text>
-                {bounty.description ? (
-                    <Text style={{ color: '#bbb', fontSize: 15 }}>{bounty.description}</Text>
-                ) : null}
-
-                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                    <View
-                        style={{
-                            paddingHorizontal: 10,
-                            paddingVertical: 6,
-                            borderRadius: 999,
-                            backgroundColor: isOpen ? '#DCFCE7' : '#FEE2E2',
-                        }}
-                    >
-                        <Text style={{ color: isOpen ? '#166534' : '#991B1B', fontWeight: '700' }}>
-                            {isOpen ? 'Open' : 'Closed'}
-                        </Text>
-                    </View>
-                    <Text style={{ color: '#888' }}>
-                        Created {new Date(bounty.created_at).toLocaleDateString()}
-                    </Text>
-                </View>
-
-                <Pressable
-                    onPress={acceptedByMe ? undefined : onAccept}
-                    disabled={acceptedByMe || accepting || !isOpen}
-                    style={{
-                        marginTop: 6,
-                        backgroundColor: acceptedByMe ? '#1f2937' : '#2563eb',
-                        paddingVertical: 12,
-                        borderRadius: 10,
-                        alignItems: 'center',
-                        opacity: accepting || !isOpen ? 0.6 : 1,
-                    }}
-                >
-                    <Text style={{ color: 'white', fontWeight: '700' }}>
-                        {acceptedByMe ? 'Already Accepted' : 'Accept Bounty'}
-                    </Text>
-                </Pressable>
-
-                {/* Submit proof */}
-                <View
-                    style={{
-                        marginTop: 12,
-                        padding: 12,
-                        backgroundColor: '#0b0b0b',
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: '#1f1f1f',
-                        gap: 8,
-                    }}
-                >
-                    <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>Submit Instagram Proof</Text>
-                    <TextInput
-                        placeholder="https://www.instagram.com/reel/..."
-                        placeholderTextColor="#777"
-                        value={instaUrl}
-                        onChangeText={setInstaUrl}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        style={{
-                            backgroundColor: '#121212',
-                            color: 'white',
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: '#222',
-                            paddingHorizontal: 12,
-                            paddingVertical: 10,
-                        }}
-                    />
-                    <TextInput
-                        placeholder="Posted date (YYYY-MM-DD or ISO)"
-                        placeholderTextColor="#777"
-                        value={postedAtISO}
-                        onChangeText={setPostedAtISO}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        style={{
-                            backgroundColor: '#121212',
-                            color: 'white',
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: '#222',
-                            paddingHorizontal: 12,
-                            paddingVertical: 10,
-                        }}
-                    />
-                    <Pressable
-                        onPress={onSubmitProof}
-                        disabled={submitting || !isOpen || submittedByMe}
-                        style={{
-                            backgroundColor: submittedByMe ? '#1f2937' : '#10b981',
-                            paddingVertical: 12,
-                            borderRadius: 10,
-                            alignItems: 'center',
-                            opacity: submitting || !isOpen ? 0.6 : 1,
-                        }}
-                    >
-                        <Text style={{ color: 'white', fontWeight: '700' }}>
-                            {submittedByMe ? 'Submission Created' : 'Submit Proof'}
-                        </Text>
-                    </Pressable>
-                </View>
-
-                <Text style={{ color: 'white', fontSize: 18, fontWeight: '800', marginTop: 18 }}>
-                    Submissions
-                </Text>
-            </View>
-        );
-    };
-
-    const SubmissionRow = ({ item }: { item: Submission }) => {
-        const onPressVote = () => (item.votedByMe ? onUnvote(item.id) : onVote(item.id));
-
-        return (
-            <View
-                style={{
-                    marginHorizontal: 16,
-                    marginVertical: 6,
-                    padding: 12,
-                    backgroundColor: '#0b0b0b',
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: '#1f1f1f',
-                    gap: 8,
-                }}
-            >
-                <Text style={{ color: 'white', fontWeight: '700' }}>
-                    {new Date(item.created_at).toLocaleString()}
-                </Text>
-                {item.external_url ? (
-                    <Text style={{ color: '#60a5fa' }} numberOfLines={2}>
-                        {item.external_url}
-                    </Text>
-                ) : (
-                    <Text style={{ color: '#bbb' }}>No URL</Text>
-                )}
-                <Text style={{ color: '#bbb' }}>
-                    Posted: {item.external_posted_at ? new Date(item.external_posted_at).toLocaleString() : '—'}
-                </Text>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Text style={{ color: '#bbb' }}>✅ {item.votes}</Text>
-                    <View style={{ flex: 1 }} />
-                    <Pressable
-                        onPress={onPressVote}
-                        disabled={votingId === item.id}
-                        style={{
-                            paddingHorizontal: 12,
-                            paddingVertical: 8,
-                            borderRadius: 999,
-                            backgroundColor: item.votedByMe ? '#1f2937' : '#2563eb',
-                            opacity: votingId === item.id ? 0.6 : 1,
-                        }}
-                    >
-                        <Text style={{ color: 'white', fontWeight: '700' }}>
-                            {item.votedByMe ? 'Unvote' : 'Verify'}
-                        </Text>
-                    </Pressable>
-                </View>
-            </View>
-        );
-    };
-
-    if (!id) {
-        return (
-            <View style={{ flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: 'white' }}>Missing bounty id.</Text>
+            <View style={styles.center}>
+                <Text style={styles.title}>No bounty id provided</Text>
+                <TouchableOpacity onPress={() => router.back()} style={styles.btn}>
+                    <Text style={styles.btnText}>Go Back</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
     if (loading) {
         return (
-            <View style={{ flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={styles.center}>
                 <ActivityIndicator />
-                <Text style={{ color: '#bbb', marginTop: 8 }}>Loading…</Text>
+                <Text style={styles.muted}>Loading bounty…</Text>
             </View>
         );
     }
 
     if (!bounty) {
         return (
-            <View style={{ flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: 'white' }}>Bounty not found.</Text>
-                <Pressable
-                    onPress={() => router.back()}
-                    style={{ marginTop: 12, backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 }}
-                >
-                    <Text style={{ color: 'white', fontWeight: '700' }}>Go Back</Text>
-                </Pressable>
+            <View style={styles.center}>
+                <Text style={styles.title}>Bounty not found</Text>
+                <TouchableOpacity onPress={() => router.back()} style={styles.btn}>
+                    <Text style={styles.btnText}>Go Back</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1, backgroundColor: 'black' }}
             behavior={Platform.select({ ios: 'padding', android: undefined })}
+            style={{ flex: 1 }}
         >
-            <FlatList
-                data={submissions}
-                keyExtractor={(s) => s.id}
-                ListHeaderComponent={<Header />}
-                renderItem={SubmissionRow}
-                ListEmptyComponent={
-                    <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>
-                        No submissions yet—be the first!
-                    </Text>
-                }
-                contentContainerStyle={{ paddingBottom: 32 }}
-                refreshing={loading}
-                onRefresh={refresh}
-            />
+            <ScrollView contentContainerStyle={styles.container}>
+                <Text style={styles.title}>{bounty.trick ?? 'Bounty'}</Text>
+
+                <View style={styles.row}>
+                    <View style={styles.pill}>
+                        <Text style={styles.pillText}>Starts: {fmt(bounty.created_at)}</Text>
+                    </View>
+                    {!!bounty.expires_at && (
+                        <View style={styles.pill}>
+                            <Text style={styles.pillText}>Ends: {fmt(bounty.expires_at)}</Text>
+                        </View>
+                    )}
+                    {!!bounty.reward && (
+                        <View style={styles.pill}>
+                            <Text style={styles.pillText}>Reward: {bounty.reward}</Text>
+                        </View>
+                    )}
+                </View>
+
+                {!accepted ? (
+                    <TouchableOpacity onPress={onAccept} style={[styles.btn, { marginTop: 10 }]}>
+                        <Text style={styles.btnText}>Accept Bounty</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={[styles.pill, { alignSelf: 'flex-start', marginTop: 10 }]}>
+                        <Text style={styles.pillText}>Accepted</Text>
+                    </View>
+                )}
+
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Submit Instagram proof</Text>
+                    {mySubmission ? (
+                        <>
+                            <Text style={styles.body}>You already submitted for this bounty.</Text>
+                            <View style={styles.submissionBox}>
+                                <Text style={styles.mono}>URL: {mySubmission.media_url ?? '—'}</Text>
+                                <Text style={styles.mono}>
+                                    Posted: {fmt(mySubmission.external_posted_at)}
+                                </Text>
+                                <Text style={styles.mono}>Submitted: {fmt(mySubmission.created_at)}</Text>
+                            </View>
+                            <Text style={styles.muted}>
+                                Server enforces one submission per user. If something is wrong, contact an admin.
+                            </Text>
+                        </>
+                    ) : (
+                        <>
+                            <Text style={styles.label}>Instagram Post URL</Text>
+                            <TextInput
+                                value={igUrl}
+                                onChangeText={setIgUrl}
+                                placeholder="https://instagram.com/p/abc123"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                inputMode="url"
+                                style={styles.input}
+                            />
+                            <Text style={styles.help}>
+                                Must be a post/reel/tv URL. The server validates it.
+                            </Text>
+
+                            <Text style={[styles.label, { marginTop: 14 }]}>
+                                Post Date/Time (ISO)
+                            </Text>
+                            <TextInput
+                                value={postedAt}
+                                onChangeText={setPostedAt}
+                                placeholder="2025-11-01T20:45:00Z"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                style={styles.input}
+                            />
+                            <Text style={styles.help}>
+                                For MVP, paste the post’s timestamp. We’ll add “auto-detect” later.
+                            </Text>
+
+                            <TouchableOpacity onPress={onSubmitProof} style={[styles.btn, { marginTop: 16 }]}>
+                                <Text style={styles.btnText}>Submit</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
+
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Submissions</Text>
+                    {!submissions.length ? (
+                        <Text style={styles.muted}>No submissions yet.</Text>
+                    ) : (
+                        submissions.map((s) => {
+                            const voted = votedIds.has(s.id);
+                            return (
+                                <View key={s.id} style={styles.subItem}>
+                                    <Text style={styles.body}>{s.media_url}</Text>
+                                    <Text style={styles.muted}>
+                                        Posted: {fmt(s.external_posted_at)} • Submitted: {fmt(s.created_at)}
+                                    </Text>
+                                    <View style={styles.voteRow}>
+                                        <View style={styles.voteBadge}>
+                                            <Text style={styles.voteText}>{s.vote_count ?? 0} votes</Text>
+                                        </View>
+                                        {voted ? (
+                                            <TouchableOpacity
+                                                onPress={() => onUnvote(s.id)}
+                                                style={[styles.btn, styles.btnLight]}
+                                            >
+                                                <Text style={[styles.btnText, { color: '#111' }]}>Unvote</Text>
+                                            </TouchableOpacity>
+                                        ) : (
+                                            <TouchableOpacity onPress={() => onVote(s.id)} style={styles.btn}>
+                                                <Text style={styles.btnText}>Vote</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                </View>
+                            );
+                        })
+                    )}
+                </View>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 }
+
+const styles = StyleSheet.create({
+    container: { padding: 16, gap: 16 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
+    title: { fontSize: 24, fontWeight: '700' },
+    row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    pill: { backgroundColor: '#1111110D', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999 },
+    pillText: { fontSize: 12, fontWeight: '600' },
+    card: { backgroundColor: '#1111110D', padding: 12, borderRadius: 12 },
+    cardTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+    body: { fontSize: 16, lineHeight: 22 },
+    label: { fontSize: 14, fontWeight: '600' },
+    input: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 10,
+        fontSize: 16,
+    },
+    help: { fontSize: 12, color: '#666', marginTop: 6 },
+    btn: { backgroundColor: '#111', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10 },
+    btnLight: { backgroundColor: '#eee' },
+    btnText: { color: 'white', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+    muted: { color: '#666' },
+    submissionBox: { backgroundColor: '#1111110D', padding: 10, borderRadius: 8, marginTop: 8, gap: 6 },
+    subItem: { backgroundColor: '#ffffff', borderRadius: 10, padding: 10, marginBottom: 8, gap: 6 },
+    voteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    voteBadge: { backgroundColor: '#1111110D', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+    voteText: { fontSize: 12, fontWeight: '700' },
+    mono: {
+        fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    },
+});

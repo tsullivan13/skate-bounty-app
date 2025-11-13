@@ -1,53 +1,65 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+// constants/theme.ts
+import { Platform, TextStyle } from 'react-native';
 
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
-export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-  },
+export const palette = {
+  bg: '#0B0D10',
+  card: '#151922',
+  cardElevated: '#171C26',
+  text: '#E6EAF2',
+  textMuted: '#98A2B3',
+  primary: '#6EE7B7', // mint
+  primaryTextOn: '#0B0D10',
+  outline: '#232A36',
+  subtle: '#0E131B',
+  accent: '#60A5FA',
+  danger: '#F87171',
+  warning: '#F59E0B',
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export const radius = {
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 20,
+  xl: 28,
+  pill: 999,
+};
+
+export const space = {
+  xs: 6,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 24,
+};
+
+export const shadow = {
+  card: Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 8 },
+    },
+    android: { elevation: 6 },
+    default: {},
+  }),
+};
+
+// Explicitly type each style as TextStyle so fontWeight stays a literal (e.g. '800') not widened to string
+const title: TextStyle = { fontSize: 22, fontWeight: '800', letterSpacing: 0.2, color: palette.text };
+const h2: TextStyle = { fontSize: 18, fontWeight: '700', color: palette.text };
+const body: TextStyle = { fontSize: 16, color: palette.text };
+const small: TextStyle = { fontSize: 12, color: palette.textMuted };
+const pill: TextStyle = { fontSize: 12, fontWeight: '700', color: palette.text };
+const button: TextStyle = { fontSize: 16, fontWeight: '800', letterSpacing: 0.25, color: palette.primaryTextOn };
+const code: TextStyle = {
+  fontFamily: Platform.select({
+    ios: 'Menlo',
+    android: 'monospace',
+    default: 'monospace',
+  }),
+  color: palette.text,
+};
+
+export const type = { title, h2, body, small, pill, button, code };

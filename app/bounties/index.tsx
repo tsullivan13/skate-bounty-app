@@ -1,15 +1,18 @@
+// app/bounties/index.tsx
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, FlatList, TouchableOpacity, View } from 'react-native';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+    Badge,
+    Button,
+    Card,
+    H2,
+    Muted,
+    Pill,
+    Row,
+    Screen,
+    Title,
+} from '../../src/components/ui/primitives';
 import { supabase } from '../../src/lib/supabase'; // adjust if your client path differs
 
 type UUID = string;
@@ -22,7 +25,7 @@ type Bounty = {
     expires_at?: string | null;
 };
 
-function fmt(d?: string | null) {
+function fmtDate(d?: string | null) {
     if (!d) return '';
     const t = new Date(d);
     return isNaN(t.getTime()) ? d : t.toLocaleDateString();
@@ -31,7 +34,6 @@ function fmt(d?: string | null) {
 export default function BountyListScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [bounties, setBounties] = useState<Bounty[]>([]);
 
     const load = useCallback(async () => {
@@ -44,91 +46,56 @@ export default function BountyListScreen() {
             if (error) throw error;
             setBounties((data ?? []) as Bounty[]);
         } catch (err: any) {
-            console.error('[bounties load]', err);
             Alert.alert('Error', err?.message ?? 'Failed to load bounties');
         } finally {
             setLoading(false);
         }
     }, []);
 
-    const onRefresh = useCallback(async () => {
-        setRefreshing(true);
-        await load();
-        setRefreshing(false);
-    }, [load]);
-
     useEffect(() => {
         load();
     }, [load]);
 
-    if (loading) {
-        return (
-            <View style={styles.center}>
-                <ActivityIndicator />
-                <Text style={styles.muted}>Loading bounties…</Text>
-            </View>
-        );
-    }
-
     return (
-        <View style={{ flex: 1 }}>
-            <FlatList
-                data={bounties}
-                keyExtractor={(item) => item.id}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
-                contentContainerStyle={styles.list}
-                ListEmptyComponent={
-                    <View style={styles.center}>
-                        <Text style={styles.muted}>No bounties yet.</Text>
-                    </View>
-                }
-                renderItem={({ item }) => (
-                    <TouchableOpacity
-                        style={styles.card}
-                        onPress={() => router.push(`/bounty/${item.id}`)}
-                    >
-                        <Text style={styles.title}>{item.trick ?? 'Bounty'}</Text>
-                        <View style={styles.row}>
-                            <View style={styles.pill}>
-                                <Text style={styles.pillText}>Starts: {fmt(item.created_at)}</Text>
-                            </View>
-                            {!!item.expires_at && (
-                                <View style={styles.pill}>
-                                    <Text style={styles.pillText}>Ends: {fmt(item.expires_at)}</Text>
-                                </View>
-                            )}
-                            {!!item.reward && (
-                                <View style={styles.pill}>
-                                    <Text style={styles.pillText}>Reward: {item.reward}</Text>
-                                </View>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                )}
-            />
-        </View>
+        <Screen>
+            <Row>
+                <Title>Skate Bounties</Title>
+                {!loading && <Badge tone="accent">{bounties.length} total</Badge>}
+            </Row>
+
+            {loading ? (
+                <Card elevated>
+                    <Muted>Loading bounties…</Muted>
+                </Card>
+            ) : bounties.length === 0 ? (
+                <Card elevated>
+                    <H2>No bounties yet</H2>
+                    <Muted>Check back soon or create one if you&apos;re an admin.</Muted>
+                </Card>
+            ) : (
+                <FlatList
+                    data={bounties}
+                    keyExtractor={(item) => item.id}
+                    ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity onPress={() => router.push(`/bounty/${item.id}`)}>
+                            <Card elevated>
+                                <Row>
+                                    <H2>{item.trick ?? 'Bounty'}</H2>
+                                    {!!item.reward && <Badge tone="warning">Reward: {item.reward}</Badge>}
+                                </Row>
+                                <Row>
+                                    <Pill>Starts {fmtDate(item.created_at)}</Pill>
+                                    {!!item.expires_at && <Pill>Ends {fmtDate(item.expires_at)}</Pill>}
+                                </Row>
+                                <Row>
+                                    <Button kind="ghost">View details</Button>
+                                </Row>
+                            </Card>
+                        </TouchableOpacity>
+                    )}
+                />
+            )}
+        </Screen>
     );
 }
-
-const styles = StyleSheet.create({
-    list: { padding: 16, gap: 12 },
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 14,
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
-        gap: 8,
-    },
-    title: { fontSize: 18, fontWeight: '700' },
-    row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    pill: { backgroundColor: '#1111110D', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999 },
-    pillText: { fontSize: 12, fontWeight: '600' },
-    muted: { color: '#666' },
-});

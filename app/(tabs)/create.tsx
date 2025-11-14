@@ -100,6 +100,13 @@ export default function CreateBounty() {
                 });
             }
 
+            const { error } = await (await import("../../src/lib/supabase")).supabase
+                .from("bounties")
+                .insert([{ user_id: session.user.id, trick: t, reward: rewardNum, image_url: imageUrl ?? null, spot_id: selectedSpotId }])
+                .select()
+                .single();
+
+            if (error) throw error;
             const body = {
                 trick: trick.trim(),
                 reward: reward.trim(),

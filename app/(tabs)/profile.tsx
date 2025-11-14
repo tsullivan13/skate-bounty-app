@@ -7,7 +7,6 @@ import { useAuth } from "../../src/providers/AuthProvider";
 
 export default function ProfileTab() {
     const { session, signOut } = useAuth();
-    const [profile, setProfile] = useState<Profile | null>(null);
     const [handle, setHandle] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -25,7 +24,6 @@ export default function ProfileTab() {
             setLoading(true);
             try {
                 const p = await getMyProfile(session);
-                setProfile(p);
                 setHandle(p?.handle ?? "");
             } catch (e) {
                 console.log("getMyProfile error:", e);

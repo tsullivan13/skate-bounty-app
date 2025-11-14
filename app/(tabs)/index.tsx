@@ -23,7 +23,6 @@ export default function HomeTab() {
   const [filterMine, setFilterMine] = useState(false);
 
   const [spots, setSpots] = useState<Spot[]>([]);
-  const [loadingSpots, setLoadingSpots] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -35,7 +34,7 @@ export default function HomeTab() {
         console.log("Error loading feed:", e);
       } finally {
         setLoading(false);
-        setLoadingSpots(false);
+        // spot loading state is implicit via the array length
       }
     })();
   }, []);

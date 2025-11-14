@@ -14,6 +14,7 @@ import {
     View,
 } from "react-native";
 import { palette } from "../../constants/theme";
+import { createBounty } from "../../src/lib/bounties";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { uploadBountyImage } from "../../src/lib/upload";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -92,6 +93,9 @@ export default function CreateBounty() {
 
         setLoading(true);
         try {
+            const trickText = trick.trim();
+            const rewardText = reward.trim();
+
             let image_url: string | null = null;
             if (imagePayload) {
                 image_url = await uploadBountyImage({
@@ -100,30 +104,12 @@ export default function CreateBounty() {
                 });
             }
 
-            const { error } = await (await import("../../src/lib/supabase")).supabase
-                .from("bounties")
-                .insert([{ user_id: session.user.id, trick: t, reward: rewardNum, image_url: imageUrl ?? null, spot_id: selectedSpotId }])
-                .select()
-                .single();
-
-            if (error) throw error;
-            const body = {
-                trick: trick.trim(),
-                reward: reward.trim(),
-                image_url,
+            await createBounty(session, {
+                trick: trickText,
+                reward: rewardText,
                 spot_id: selectedSpotId,
-            };
-
-            const res = await fetch("/api/create-bounty", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
+                image_url,
             });
-
-            if (!res.ok) {
-                const txt = await res.text();
-                throw new Error(txt || "Failed to create bounty");
-            }
 
             setTrick("");
             setReward("");

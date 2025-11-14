@@ -6,24 +6,31 @@ export type Bounty = {
     id: string;
     user_id: string;
     trick: string;
-    reward: number;
+    reward: string | number | null;
+    image_url?: string | null;
+    spot_id?: string | null;
     created_at: string;
 };
 
-export async function createBounty(
-    session: Session,
-    trick: string,
-    reward: number
-) {
+export type CreateBountyInput = {
+    trick: string;
+    reward: string;
+    spot_id?: string | null;
+    image_url?: string | null;
+};
+
+export async function createBounty(session: Session, input: CreateBountyInput) {
+    const payload = {
+        user_id: session.user.id,
+        trick: input.trick,
+        reward: input.reward,
+        spot_id: input.spot_id ?? null,
+        image_url: input.image_url ?? null,
+    };
+
     const { data, error } = await supabase
         .from("bounties")
-        .insert([
-            {
-                user_id: session.user.id,
-                trick,
-                reward: Number(reward),
-            },
-        ])
+        .insert([payload])
         .select()
         .single();
 
@@ -34,7 +41,7 @@ export async function createBounty(
 export async function fetchBounties(): Promise<Bounty[]> {
     const { data, error } = await supabase
         .from("bounties")
-        .select("*")
+        .select("id,user_id,trick,reward,image_url,spot_id,created_at")
         .order("created_at", { ascending: false });
 
     if (error) throw error;

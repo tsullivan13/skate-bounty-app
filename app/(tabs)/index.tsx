@@ -91,6 +91,13 @@ export default function HomeTab() {
                 ? spotById.get((item as any).spot_id as string)
                 : undefined;
 
+            const rewardLabel = (() => {
+              if (item.reward === null || item.reward === undefined || item.reward === "") {
+                return "—";
+              }
+              return typeof item.reward === "number" ? `$${item.reward}` : String(item.reward);
+            })();
+
             return (
               <Pressable
                 onPress={() => router.push(`/bounty/${item.id}`)}
@@ -105,7 +112,7 @@ export default function HomeTab() {
                   ) : null}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.trick}>{item.trick}</Text>
-                    <Text style={styles.reward}>Reward: ${item.reward}</Text>
+                    <Text style={styles.reward}>Reward: {rewardLabel}</Text>
                     <Text style={styles.meta}>
                       {s ? `@ ${s.title} • ` : ""}
                       by {item.user_id.slice(0, 6)}… •{" "}

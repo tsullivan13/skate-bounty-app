@@ -1,4 +1,4 @@
-// src/components/ui/primitives.tsx
+// src/ui/primitives.tsx
 import React, { PropsWithChildren } from 'react';
 import {
     ActivityIndicator,
@@ -10,7 +10,7 @@ import {
     View,
     ViewProps,
 } from 'react-native';
-import { palette, radius, shadow, space, type } from '../../../constants/theme';
+import { palette, radius, shadow, space, type } from '../../constants/theme';
 
 export function Screen({ children }: PropsWithChildren) {
     return <View style={styles.screen}>{children}</View>;

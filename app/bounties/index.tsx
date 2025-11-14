@@ -12,7 +12,7 @@ import {
     Row,
     Screen,
     Title,
-} from '../../src/components/ui/primitives';
+} from '../../src/ui/primitives';
 import { supabase } from '../../src/lib/supabase'; // adjust if your client path differs
 
 type UUID = string;

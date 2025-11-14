@@ -1,7 +1,11 @@
 // src/lib/validators.ts
 export function normalizeInstagramUrl(url: string): string {
     const trimmed = (url ?? '').trim();
-    const u = new URL(trimmed);
+    if (!trimmed) throw new Error('URL is required');
+
+    const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+    const u = new URL(candidate);
     if (!/instagram\.com$/i.test(u.hostname)) throw new Error('Not an Instagram URL');
     // Allow /reel/, /reels/, /p/, /tv/, /stories/
     if (!/\/(reel|reels|p|tv|stories)\//i.test(u.pathname)) {

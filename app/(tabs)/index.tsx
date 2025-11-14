@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { palette } from "../../constants/theme";
 import { Bounty, fetchBounties, subscribeBounties } from "../../src/lib/bounties";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -80,7 +81,7 @@ export default function HomeTab() {
       </View>
 
       {filtered.length === 0 ? (
-        <Text>No bounties yet. Create one!</Text>
+        <Text style={styles.emptyText}>No bounties yet. Create one!</Text>
       ) : (
         <FlatList
           data={filtered}
@@ -123,15 +124,38 @@ export default function HomeTab() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, gap: 12, flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 24, fontWeight: "700" },
-  card: { padding: 12, borderWidth: 1, borderRadius: 10, marginBottom: 12 },
-  trick: { fontSize: 18, fontWeight: "700" },
-  reward: { fontSize: 16, marginTop: 4 },
-  meta: { fontSize: 12, opacity: 0.6, marginTop: 6 },
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  toggle: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
-  toggleOn: { backgroundColor: "#efefef" },
-  toggleText: { fontWeight: "600" },
+  container: { padding: 24, gap: 12, flex: 1, backgroundColor: palette.bg },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.bg,
+  },
+  title: { fontSize: 24, fontWeight: "700", color: palette.text },
+  card: {
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    marginBottom: 12,
+    backgroundColor: palette.card,
+    borderColor: palette.outline,
+  },
+  trick: { fontSize: 18, fontWeight: "700", color: palette.text },
+  reward: { fontSize: 16, marginTop: 4, color: palette.text },
+  meta: { fontSize: 12, marginTop: 6, color: palette.textMuted },
+  emptyText: { fontSize: 14, color: palette.textMuted },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  toggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: palette.outline,
+  },
+  toggleOn: { backgroundColor: palette.subtle },
+  toggleText: { fontWeight: "600", color: palette.text },
 });

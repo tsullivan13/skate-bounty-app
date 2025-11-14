@@ -1,12 +1,11 @@
 // app/(tabs)/profile.tsx
 import React, { useEffect, useState } from "react";
 import { Button, StyleSheet, Text, TextInput, View } from "react-native";
-import { getMyProfile, Profile, upsertMyHandle } from "../../src/lib/profiles";
+import { getMyProfile, upsertMyHandle } from "../../src/lib/profiles";
 import { useAuth } from "../../src/providers/AuthProvider";
 
 export default function ProfileTab() {
     const { session, signOut } = useAuth();
-    const [profile, setProfile] = useState<Profile | null>(null);
     const [handle, setHandle] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -21,7 +20,6 @@ export default function ProfileTab() {
             setLoading(true);
             try {
                 const p = await getMyProfile(session);
-                setProfile(p);
                 setHandle(p?.handle ?? "");
             } catch (e: any) {
                 console.log("Load profile error:", e);
@@ -50,8 +48,7 @@ export default function ProfileTab() {
                 return;
             }
             setSaving(true);
-            const p = await upsertMyHandle(session, trimmed);
-            setProfile(p);
+            await upsertMyHandle(session, trimmed);
             setSaveMsg("Saved.");
         } catch (e: any) {
             console.log("Save profile error:", e);

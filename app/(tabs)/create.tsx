@@ -94,7 +94,7 @@ export default function CreateBounty() {
                 imageUrl = await uploadBountyImage({ ...imagePayload, userId: session.user.id });
             }
 
-            const { data, error } = await (await import("../../src/lib/supabase")).supabase
+            const { error } = await (await import("../../src/lib/supabase")).supabase
                 .from("bounties")
                 .insert([{ user_id: session.user.id, trick: t, reward: rewardNum, image_url: imageUrl ?? null, spot_id: selectedSpotId }])
                 .select()

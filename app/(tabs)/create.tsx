@@ -1,12 +1,9 @@
 // app/(tabs)/create.tsx
-import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
     Alert,
     Button,
     FlatList,
-    Image,
-    Platform,
     Pressable,
     StyleSheet,
     Text,
@@ -16,19 +13,12 @@ import {
 import { palette } from "../../constants/theme";
 import { createBounty } from "../../src/lib/bounties";
 import { fetchSpots, Spot } from "../../src/lib/spots";
-import { uploadBountyImage } from "../../src/lib/upload";
 import { useAuth } from "../../src/providers/AuthProvider";
 
 export default function CreateBounty() {
     const { session } = useAuth();
     const [trick, setTrick] = useState("");
     const [reward, setReward] = useState("");
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [imagePayload, setImagePayload] = useState<{
-        file?: File | Blob;
-        base64?: string;
-        contentType?: string;
-    } | null>(null);
     const [loading, setLoading] = useState(false);
 
     const [spots, setSpots] = useState<Spot[]>([]);
@@ -49,37 +39,6 @@ export default function CreateBounty() {
         })();
     }, []);
 
-    const pickImage = async () => {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-            Alert.alert("Permission required", "We need access to your photos to attach an image.");
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsMultipleSelection: false,
-            quality: 0.8,
-            base64: Platform.OS !== "web",
-        });
-
-        if (result.canceled) return;
-
-        const asset = result.assets[0];
-        setImagePreview(asset.uri);
-
-        if (Platform.OS === "web") {
-            const file = (asset as any).file as File | undefined;
-            if (!file) return;
-            setImagePayload({ file, contentType: file.type });
-        } else {
-            setImagePayload({
-                base64: asset.base64 ?? undefined,
-                contentType: "image/jpeg",
-            });
-        }
-    };
-
     const submit = async () => {
         if (!session) {
             Alert.alert("Auth required", "You must be signed in to create bounties.");
@@ -96,25 +55,14 @@ export default function CreateBounty() {
             const trickText = trick.trim();
             const rewardText = reward.trim();
 
-            let image_url: string | null = null;
-            if (imagePayload) {
-                image_url = await uploadBountyImage({
-                    ...imagePayload,
-                    userId: session.user.id,
-                });
-            }
-
             await createBounty(session, {
                 trick: trickText,
                 reward: rewardText,
                 spot_id: selectedSpotId,
-                image_url,
             });
 
             setTrick("");
             setReward("");
-            setImagePreview(null);
-            setImagePayload(null);
             Alert.alert("Created", "Bounty created successfully.");
         } catch (e: any) {
             console.log("create bounty error", e);
@@ -165,16 +113,6 @@ export default function CreateBounty() {
                         )}
                     />
                 )}
-            </View>
-
-            <View style={{ gap: 8 }}>
-                {imagePreview ? (
-                    <Image
-                        source={{ uri: imagePreview }}
-                        style={{ width: "100%", height: 200, borderRadius: 12 }}
-                    />
-                ) : null}
-                <Button title="Pick Image" onPress={pickImage} />
             </View>
 
             <Button title={loading ? "Creating…" : "Create Bounty"} onPress={submit} disabled={loading} />

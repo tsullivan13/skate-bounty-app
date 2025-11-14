@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -104,12 +103,6 @@ export default function HomeTab() {
                 style={styles.card}
               >
                 <View style={{ flexDirection: "row", gap: 12 }}>
-                  {(item as any).image_url ? (
-                    <Image
-                      source={{ uri: (item as any).image_url as string }}
-                      style={{ width: 72, height: 72, borderRadius: 8 }}
-                    />
-                  ) : null}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.trick}>{item.trick}</Text>
                     <Text style={styles.reward}>Reward: {rewardLabel}</Text>

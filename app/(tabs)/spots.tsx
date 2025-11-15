@@ -96,13 +96,11 @@ export default function SpotsTab() {
                 });
             }
 
-            // createSpot expects multiple params (see TS error: 4–5 args)
-            const spot = await createSpot(
-                title.trim(),
-                locationHint.trim() || null,
+            const spot = await createSpot(session, {
+                title: title.trim(),
+                location_hint: locationHint.trim() || null,
                 image_url,
-                session.user.id
-            );
+            });
 
             setSpots((prev) => [spot, ...prev]);
             setTitle("");
@@ -159,7 +157,7 @@ export default function SpotsTab() {
                     data={spots}
                     keyExtractor={(s) => s.id}
                     renderItem={({ item }) => {
-                        const locHint = (item as any).location_hint as string | undefined;
+                        const locHint = item.location_hint ?? undefined;
                         return (
                             <View style={styles.card}>
                                 <View style={{ flexDirection: "row", gap: 12 }}>

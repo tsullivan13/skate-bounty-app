@@ -1,20 +1,8 @@
 // app/(tabs)/spots.tsx
-import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
-import {
-    Alert,
-    Button,
-    FlatList,
-    Image,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from "react-native";
+import { Alert, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { palette } from "../../constants/theme";
 import { createSpot, fetchSpots, Spot } from "../../src/lib/spots";
-import { uploadBountyImage } from "../../src/lib/upload";
 import { useAuth } from "../../src/providers/AuthProvider";
 
 export default function SpotsTab() {
@@ -24,12 +12,6 @@ export default function SpotsTab() {
 
     const [title, setTitle] = useState("");
     const [locationHint, setLocationHint] = useState("");
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [imagePayload, setImagePayload] = useState<{
-        file?: File | Blob;
-        base64?: string;
-        contentType?: string;
-    } | null>(null);
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
@@ -45,37 +27,6 @@ export default function SpotsTab() {
         })();
     }, []);
 
-    const pickImage = async () => {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-            Alert.alert("Permission required", "We need access to your photos.");
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsMultipleSelection: false,
-            quality: 0.8,
-            base64: Platform.OS !== "web",
-        });
-
-        if (result.canceled) return;
-
-        const asset = result.assets[0];
-        setImagePreview(asset.uri);
-
-        if (Platform.OS === "web") {
-            const file = (asset as any).file as File | undefined;
-            if (!file) return;
-            setImagePayload({ file, contentType: file.type });
-        } else {
-            setImagePayload({
-                base64: asset.base64 ?? undefined,
-                contentType: "image/jpeg",
-            });
-        }
-    };
-
     const handleCreateSpot = async () => {
         if (!session) {
             Alert.alert("Auth required", "You must be signed in to create spots.");
@@ -88,25 +39,14 @@ export default function SpotsTab() {
 
         setCreating(true);
         try {
-            let image_url: string | null = null;
-            if (imagePayload) {
-                image_url = await uploadBountyImage({
-                    ...imagePayload,
-                    userId: session.user.id,
-                });
-            }
-
             const spot = await createSpot(session, {
                 title: title.trim(),
                 location_hint: locationHint.trim() || null,
-                image_url,
             });
 
             setSpots((prev) => [spot, ...prev]);
             setTitle("");
             setLocationHint("");
-            setImagePreview(null);
-            setImagePayload(null);
         } catch (e: any) {
             console.log("create spot error", e);
             Alert.alert("Error", e?.message ?? "Failed to create spot");
@@ -134,18 +74,25 @@ export default function SpotsTab() {
                     value={locationHint}
                     onChangeText={setLocationHint}
                 />
-                {imagePreview ? (
-                    <Image
-                        source={{ uri: imagePreview }}
-                        style={{ width: "100%", height: 180, borderRadius: 12 }}
-                    />
-                ) : null}
-                <Button title="Pick Image" onPress={pickImage} />
-                <Button
-                    title={creating ? "Creating…" : "Create Spot"}
-                    disabled={creating}
-                    onPress={handleCreateSpot}
-                />
+                <Text
+                    style={{
+                        color: palette.textMuted,
+                        fontSize: 12,
+                    }}
+                >
+                    {"Images aren't supported yet, but you can still share a title and optional location hint."}
+                </Text>
+                <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+                    <Text
+                        style={{
+                            color: creating ? palette.textMuted : palette.link,
+                            fontWeight: "600",
+                        }}
+                        onPress={creating ? undefined : handleCreateSpot}
+                    >
+                        {creating ? "Creating…" : "Create Spot"}
+                    </Text>
+                </View>
             </View>
 
             <View style={{ height: 24 }} />
@@ -160,21 +107,11 @@ export default function SpotsTab() {
                         const locHint = item.location_hint ?? undefined;
                         return (
                             <View style={styles.card}>
-                                <View style={{ flexDirection: "row", gap: 12 }}>
-                                    {item.image_url ? (
-                                        <Image
-                                            source={{ uri: item.image_url }}
-                                            style={{ width: 72, height: 72, borderRadius: 8 }}
-                                        />
-                                    ) : null}
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.spotTitle}>{item.title}</Text>
-                                        <Text style={styles.meta}>
-                                            {locHint ? locHint + " • " : ""}
-                                            {new Date(item.created_at).toLocaleString()}
-                                        </Text>
-                                    </View>
-                                </View>
+                                <Text style={styles.spotTitle}>{item.title}</Text>
+                                <Text style={styles.meta}>
+                                    {locHint ? locHint + " • " : ""}
+                                    {new Date(item.created_at).toLocaleString()}
+                                </Text>
                             </View>
                         );
                     }}

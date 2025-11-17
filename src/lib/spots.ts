@@ -7,7 +7,6 @@ export type Spot = {
     user_id: string;
     title: string;
     location_hint: string | null;
-    image_url: string | null;
     lat: number | null;
     lng: number | null;
     created_at: string;
@@ -18,7 +17,6 @@ export type CreateSpotInput = {
     location_hint?: string | null;
     lat?: number | null;
     lng?: number | null;
-    image_url?: string | null;
 };
 
 export async function createSpot(session: Session, input: CreateSpotInput): Promise<Spot> {
@@ -31,7 +29,6 @@ export async function createSpot(session: Session, input: CreateSpotInput): Prom
                 location_hint: input.location_hint ?? null,
                 lat: input.lat ?? null,
                 lng: input.lng ?? null,
-                image_url: input.image_url ?? null,
             },
         ])
         .select()
@@ -44,7 +41,7 @@ export async function createSpot(session: Session, input: CreateSpotInput): Prom
 export async function fetchSpots(): Promise<Spot[]> {
     const { data, error } = await supabase
         .from("spots")
-        .select("id,user_id,title,location_hint,image_url,lat,lng,created_at")
+        .select("id,user_id,title,location_hint,lat,lng,created_at")
         .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []) as Spot[];

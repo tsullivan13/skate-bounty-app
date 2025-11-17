@@ -12,6 +12,7 @@ export default function ProfileTab() {
     const [saving, setSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [saveMsg, setSaveMsg] = useState<string | null>(null);
+    const [profile, setProfile] = useState<Profile | null>(null);
 
     useEffect(() => {
         if (!session) {
@@ -24,6 +25,7 @@ export default function ProfileTab() {
             setLoading(true);
             try {
                 const p = await getMyProfile(session);
+                setProfile(p);
                 setHandle(p?.handle ?? "");
             } catch (e) {
                 console.log("getMyProfile error:", e);
@@ -69,6 +71,9 @@ export default function ProfileTab() {
                 <>
                     <Text style={{ color: palette.text }}>Email: {session?.user?.email}</Text>
                     <Text style={{ color: palette.text }}>User ID: {session?.user?.id}</Text>
+                    {profile?.handle ? (
+                        <Text style={{ color: palette.textMuted }}>Current handle: {profile.handle}</Text>
+                    ) : null}
 
                     <View style={{ height: 16 }} />
 

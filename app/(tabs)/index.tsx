@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -91,21 +90,22 @@ export default function HomeTab() {
                 ? spotById.get((item as any).spot_id as string)
                 : undefined;
 
+            const rewardLabel = (() => {
+              if (item.reward === null || item.reward === undefined || item.reward === "") {
+                return "—";
+              }
+              return typeof item.reward === "number" ? `$${item.reward}` : String(item.reward);
+            })();
+
             return (
               <Pressable
                 onPress={() => router.push(`/bounty/${item.id}`)}
                 style={styles.card}
               >
                 <View style={{ flexDirection: "row", gap: 12 }}>
-                  {(item as any).image_url ? (
-                    <Image
-                      source={{ uri: (item as any).image_url as string }}
-                      style={{ width: 72, height: 72, borderRadius: 8 }}
-                    />
-                  ) : null}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.trick}>{item.trick}</Text>
-                    <Text style={styles.reward}>Reward: ${item.reward}</Text>
+                    <Text style={styles.reward}>Reward: {rewardLabel}</Text>
                     <Text style={styles.meta}>
                       {s ? `@ ${s.title} • ` : ""}
                       by {item.user_id.slice(0, 6)}… •{" "}

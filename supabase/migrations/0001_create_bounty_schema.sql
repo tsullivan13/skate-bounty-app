@@ -133,7 +133,7 @@ left join (
     group by submission_id
 ) v on s.id = v.submission_id;
 
--- RPC functions
+drop function if exists public.rpc_accept_bounty(uuid);
 create or replace function public.rpc_accept_bounty(p_bounty_id uuid)
 returns public.bounty_acceptances
 language plpgsql
@@ -157,6 +157,7 @@ begin
 end;
 $$;
 
+drop function if exists public.rpc_submit_proof(uuid, text, text, text, text, timestamptz);
 create or replace function public.rpc_submit_proof(
     p_bounty_id uuid,
     p_media_url text,
@@ -201,6 +202,7 @@ begin
 end;
 $$;
 
+drop function if exists public.rpc_vote_submission(uuid);
 create or replace function public.rpc_vote_submission(p_submission_id uuid)
 returns public.submission_votes
 language plpgsql
@@ -224,6 +226,7 @@ begin
 end;
 $$;
 
+drop function if exists public.rpc_unvote_submission(uuid);
 create or replace function public.rpc_unvote_submission(p_submission_id uuid)
 returns void
 language plpgsql

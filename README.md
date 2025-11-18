@@ -12,3 +12,4 @@ SQL migrations for Supabase live in `supabase/migrations`. To apply them:
 2. From the repository root, run the migrations against your database URL:
    - Local/remote database: `supabase db push --db-url "$SUPABASE_DB_URL"`
    - Local dockerized database: start it with `supabase db start` and run `supabase db push`
+3. If you prefer the Supabase SQL editor, you can paste the migration SQL directly; the script includes `drop function if exists` statements so functions are recreated cleanly when rerun.

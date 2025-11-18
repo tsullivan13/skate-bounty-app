@@ -33,6 +33,9 @@ create table if not exists public.submissions (
 alter table public.submissions
     add column if not exists submitted_by uuid references auth.users (id);
 
+alter table public.submissions
+    add column if not exists proof_url text not null default '';
+
 create table if not exists public.submission_votes (
     id uuid primary key default gen_random_uuid(),
     submission_id uuid not null references public.submissions (id) on delete cascade,

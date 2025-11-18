@@ -17,6 +17,8 @@ import {
 } from '../../src/ui/primitives';
 import { fetchProfilesByIds, Profile } from '../../src/lib/profiles';
 import { supabase } from '../../src/lib/supabase';
+import { fetchSpotById, Spot } from '../../src/lib/spots';
+import { useAuth } from '../../src/providers/AuthProvider';
 
 type UUID = string;
 
@@ -57,6 +59,7 @@ export default function BountyDetail() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const bountyId = useMemo(() => (Array.isArray(id) ? id[0] : id), [id]);
+    const { session } = useAuth();
 
     const [me, setMe] = useState<{ id: UUID } | null>(null);
     const [bounty, setBounty] = useState<Bounty | null>(null);
@@ -66,9 +69,18 @@ export default function BountyDetail() {
     const [votedIds, setVotedIds] = useState<Set<UUID>>(new Set());
     const [loading, setLoading] = useState(true);
     const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+    const [spot, setSpot] = useState<Spot | null>(null);
 
     const [igUrl, setIgUrl] = useState('');
     const [postedAt, setPostedAt] = useState('');
+
+    useEffect(() => {
+        if (session) {
+            setMe({ id: session.user.id as UUID });
+        } else {
+            setMe(null);
+        }
+    }, [session]);
 
     const loadMe = useCallback(async () => {
         const { data, error } = await supabase.auth.getUser();
@@ -87,7 +99,7 @@ export default function BountyDetail() {
         setLoading(true);
         try {
             const currentUser = me ?? (await loadMe());
-
+ 
             const { data: bnty, error: bErr } = await supabase
                 .from('bounties')
                 .select('*')
@@ -95,6 +107,18 @@ export default function BountyDetail() {
                 .single<Bounty>();
             if (bErr) throw bErr;
             setBounty(bnty);
+
+            if (bnty?.spot_id) {
+                try {
+                    const spotData = await fetchSpotById(bnty.spot_id);
+                    setSpot(spotData);
+                } catch (e) {
+                    console.log('load spot error', e);
+                    setSpot(null);
+                }
+            } else {
+                setSpot(null);
+            }
 
             if (currentUser) {
                 const { data: acc, error: aErr } = await supabase
@@ -194,7 +218,19 @@ export default function BountyDetail() {
         loadAll();
     }, [loadAll]);
 
+    const requireAuth = useCallback(() => {
+        if (!session) {
+            Alert.alert('Auth required', 'Sign in to accept or submit to this bounty.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sign in', onPress: () => router.push('/login') },
+            ]);
+            return false;
+        }
+        return true;
+    }, [router, session]);
+
     const onAccept = useCallback(async () => {
+        if (!requireAuth()) return;
         if (!bountyId) return;
         try {
             const { error } = await supabase.rpc('rpc_accept_bounty', { p_bounty: bountyId });
@@ -204,9 +240,10 @@ export default function BountyDetail() {
         } catch (err: any) {
             Alert.alert('Error', err?.message ?? 'Could not accept bounty');
         }
-    }, [bountyId]);
+    }, [bountyId, requireAuth]);
 
     const onSubmitProof = useCallback(async () => {
+        if (!requireAuth()) return;
         if (!bountyId) return;
         const url = igUrl.trim();
         const iso = postedAt.trim();
@@ -233,7 +270,7 @@ export default function BountyDetail() {
         } catch (err: any) {
             Alert.alert('Submission failed', err?.message ?? 'Could not submit proof.');
         }
-    }, [bountyId, igUrl, postedAt, loadAll]);
+    }, [bountyId, igUrl, postedAt, loadAll, requireAuth]);
 
     const onVote = useCallback(async (submissionId: UUID) => {
         try {
@@ -332,7 +369,26 @@ export default function BountyDetail() {
 
                     <Muted>Posted by {displayName(bounty.user_id)}</Muted>
 
-                    {!accepted ? <Button onPress={onAccept}>Accept Bounty</Button> : <Badge tone="accent">Accepted</Badge>}
+                    {!accepted ? (
+                        <Button onPress={onAccept} kind={session ? 'solid' : 'ghost'}>
+                            {session ? 'Accept Bounty' : 'Sign in to accept'}
+                        </Button>
+                    ) : (
+                        <Badge tone="accent">Accepted</Badge>
+                    )}
+
+                    {spot ? (
+                        <Card elevated>
+                            <H2>Spot</H2>
+                            <Muted>{spot.title}</Muted>
+                            {spot.image_url ? <Mono>{spot.image_url}</Mono> : null}
+                            {(spot.lat ?? null) !== null && (spot.lng ?? null) !== null ? (
+                                <Mono>
+                                    Coordinates: {spot.lat?.toFixed(4)}, {spot.lng?.toFixed(4)}
+                                </Mono>
+                            ) : null}
+                        </Card>
+                    ) : null}
 
                     <Card elevated>
                         <H2>Submit Instagram proof</H2>
@@ -357,6 +413,7 @@ export default function BountyDetail() {
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     inputMode="url"
+                                    editable={!!session}
                                 />
                                 <Input
                                     value={postedAt}
@@ -364,8 +421,11 @@ export default function BountyDetail() {
                                     placeholder="2025-11-01T20:45:00Z"
                                     autoCapitalize="none"
                                     autoCorrect={false}
+                                    editable={!!session}
                                 />
-                                <Button onPress={onSubmitProof}>Submit</Button>
+                                <Button onPress={onSubmitProof} kind={session ? 'solid' : 'ghost'}>
+                                    {session ? 'Submit' : 'Sign in to submit'}
+                                </Button>
                             </>
                         )}
                     </Card>

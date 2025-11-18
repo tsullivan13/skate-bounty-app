@@ -19,6 +19,17 @@ export type CreateSpotInput = {
     lng?: number | null;
 };
 
+export async function fetchSpotById(id: string): Promise<Spot | null> {
+    const { data, error } = await supabase
+        .from("spots")
+        .select("id,user_id,title,image_url,lat,lng,created_at")
+        .eq("id", id)
+        .maybeSingle();
+
+    if (error) throw error;
+    return (data as Spot) ?? null;
+}
+
 export async function createSpot(session: Session, input: CreateSpotInput): Promise<Spot> {
     const { data, error } = await supabase
         .from("spots")

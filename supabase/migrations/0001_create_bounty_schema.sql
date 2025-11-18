@@ -29,6 +29,10 @@ create table if not exists public.submissions (
     created_at timestamptz not null default now()
 );
 
+-- Ensure column exists even if table predated this migration
+alter table public.submissions
+    add column if not exists submitted_by uuid references auth.users (id);
+
 create table if not exists public.submission_votes (
     id uuid primary key default gen_random_uuid(),
     submission_id uuid not null references public.submissions (id) on delete cascade,

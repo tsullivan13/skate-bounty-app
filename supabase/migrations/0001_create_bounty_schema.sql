@@ -1,57 +1,130 @@
--- Schema for bounty tracking
 create extension if not exists "uuid-ossp";
 create extension if not exists pgcrypto;
 
 create table if not exists public.bounties (
     id uuid primary key default gen_random_uuid(),
-    title text not null,
-    description text not null,
-    reward numeric(12,2) not null default 0,
-    created_by uuid references auth.users (id),
+    user_id uuid not null references auth.users (id),
+    trick text,
+    reward numeric,
     created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
+    spot_id uuid references public.spots (id) on delete set null,
+    status text,
+    reward_type text,
+    difficulty text,
+    expires_at timestamptz
 );
+
+alter table public.bounties
+    add column if not exists user_id uuid not null references auth.users (id);
+
+alter table public.bounties
+    add column if not exists trick text;
+
+alter table public.bounties
+    add column if not exists reward numeric;
+
+alter table public.bounties
+    add column if not exists created_at timestamptz not null default now();
+
+alter table public.bounties
+    add column if not exists spot_id uuid references public.spots (id) on delete set null;
+
+alter table public.bounties
+    add column if not exists status text;
+
+alter table public.bounties
+    add column if not exists reward_type text;
+
+alter table public.bounties
+    add column if not exists difficulty text;
+
+alter table public.bounties
+    add column if not exists expires_at timestamptz;
 
 create table if not exists public.bounty_acceptances (
     id uuid primary key default gen_random_uuid(),
     bounty_id uuid not null references public.bounties (id) on delete cascade,
-    skater_id uuid not null references auth.users (id),
-    accepted_at timestamptz not null default now(),
-    constraint uq_bounty_acceptance unique (bounty_id, skater_id)
+    user_id uuid not null references auth.users (id),
+    created_at timestamptz not null default now(),
+    constraint uq_bounty_acceptance unique (bounty_id, user_id)
 );
+
+alter table public.bounty_acceptances
+    add column if not exists user_id uuid not null references auth.users (id);
+
+alter table public.bounty_acceptances
+    add column if not exists created_at timestamptz not null default now();
+
+alter table public.bounty_acceptances
+    drop constraint if exists uq_bounty_acceptance;
+
+alter table public.bounty_acceptances
+    add constraint uq_bounty_acceptance unique (bounty_id, user_id);
 
 create table if not exists public.submissions (
     id uuid primary key default gen_random_uuid(),
     bounty_id uuid not null references public.bounties (id) on delete cascade,
-    submitted_by uuid not null references auth.users (id),
-    proof_url text not null,
-    notes text,
-    created_at timestamptz not null default now()
+    user_id uuid not null references auth.users (id),
+    media_url text not null,
+    caption text,
+    status text,
+    created_at timestamptz not null default now(),
+    external_url text,
+    external_posted_at timestamptz
 );
 
--- Ensure column exists even if table predated this migration
 alter table public.submissions
-    add column if not exists submitted_by uuid references auth.users (id);
+    add column if not exists user_id uuid not null references auth.users (id);
 
 alter table public.submissions
-    add column if not exists proof_url text not null default '';
+    add column if not exists media_url text;
+
+alter table public.submissions
+    add column if not exists caption text;
+
+alter table public.submissions
+    add column if not exists status text;
+
+alter table public.submissions
+    add column if not exists created_at timestamptz not null default now();
+
+alter table public.submissions
+    add column if not exists external_url text;
+
+alter table public.submissions
+    add column if not exists external_posted_at timestamptz;
 
 create table if not exists public.submission_votes (
     id uuid primary key default gen_random_uuid(),
     submission_id uuid not null references public.submissions (id) on delete cascade,
-    voter_id uuid not null references auth.users (id),
-    voted_at timestamptz not null default now(),
-    constraint uq_submission_vote unique (submission_id, voter_id)
+    user_id uuid not null references auth.users (id),
+    created_at timestamptz not null default now(),
+    constraint uq_submission_vote unique (submission_id, user_id)
 );
+
+alter table public.submission_votes
+    add column if not exists user_id uuid not null references auth.users (id);
+
+alter table public.submission_votes
+    add column if not exists created_at timestamptz not null default now();
+
+alter table public.submission_votes
+    drop constraint if exists uq_submission_vote;
+
+alter table public.submission_votes
+    add constraint uq_submission_vote unique (submission_id, user_id);
 
 create or replace view public.v_submissions_with_votes as
 select
     s.id,
     s.bounty_id,
-    s.submitted_by,
-    s.proof_url,
-    s.notes,
+    s.user_id,
+    s.media_url,
+    s.caption,
+    s.status,
     s.created_at,
+    s.external_url,
+    s.external_posted_at,
     coalesce(v.vote_count, 0) as vote_count
 from public.submissions s
 left join (
@@ -74,10 +147,10 @@ begin
         raise exception 'Not authenticated';
     end if;
 
-    insert into public.bounty_acceptances (bounty_id, skater_id)
+    insert into public.bounty_acceptances (bounty_id, user_id)
     values (p_bounty_id, auth.uid())
-    on conflict (bounty_id, skater_id) do update
-        set accepted_at = excluded.accepted_at
+    on conflict (bounty_id, user_id) do update
+        set created_at = excluded.created_at
     returning * into result;
 
     return result;
@@ -86,8 +159,11 @@ $$;
 
 create or replace function public.rpc_submit_proof(
     p_bounty_id uuid,
-    p_proof_url text,
-    p_notes text default null
+    p_media_url text,
+    p_caption text default null,
+    p_status text default null,
+    p_external_url text default null,
+    p_external_posted_at timestamptz default null
 )
 returns public.submissions
 language plpgsql
@@ -101,8 +177,24 @@ begin
         raise exception 'Not authenticated';
     end if;
 
-    insert into public.submissions (bounty_id, submitted_by, proof_url, notes)
-    values (p_bounty_id, auth.uid(), p_proof_url, p_notes)
+    insert into public.submissions (
+        bounty_id,
+        user_id,
+        media_url,
+        caption,
+        status,
+        external_url,
+        external_posted_at
+    )
+    values (
+        p_bounty_id,
+        auth.uid(),
+        p_media_url,
+        p_caption,
+        coalesce(p_status, 'submitted'),
+        p_external_url,
+        p_external_posted_at
+    )
     returning * into result;
 
     return result;
@@ -122,10 +214,10 @@ begin
         raise exception 'Not authenticated';
     end if;
 
-    insert into public.submission_votes (submission_id, voter_id)
+    insert into public.submission_votes (submission_id, user_id)
     values (p_submission_id, auth.uid())
-    on conflict (submission_id, voter_id) do update
-        set voted_at = now()
+    on conflict (submission_id, user_id) do update
+        set created_at = now()
     returning * into result;
 
     return result;
@@ -145,7 +237,7 @@ begin
 
     delete from public.submission_votes
     where submission_id = p_submission_id
-      and voter_id = auth.uid();
+      and user_id = auth.uid();
 end;
 $$;
 
@@ -154,38 +246,38 @@ alter table public.bounties enable row level security;
 create policy "authenticated can read bounties" on public.bounties
     for select using (auth.uid() is not null);
 create policy "authenticated can insert bounties" on public.bounties
-    for insert with check (auth.uid() = created_by);
+    for insert with check (auth.uid() = user_id);
 create policy "creators can update bounties" on public.bounties
-    for update using (auth.uid() = created_by) with check (auth.uid() = created_by);
+    for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "creators can delete bounties" on public.bounties
-    for delete using (auth.uid() = created_by);
+    for delete using (auth.uid() = user_id);
 
 alter table public.bounty_acceptances enable row level security;
 create policy "authenticated can read bounty_acceptances" on public.bounty_acceptances
     for select using (auth.uid() is not null);
 create policy "skaters can accept bounties" on public.bounty_acceptances
-    for insert with check (auth.uid() = skater_id);
+    for insert with check (auth.uid() = user_id);
 create policy "skaters can update bounty_acceptances" on public.bounty_acceptances
-    for update using (auth.uid() = skater_id) with check (auth.uid() = skater_id);
+    for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "skaters can delete bounty_acceptances" on public.bounty_acceptances
-    for delete using (auth.uid() = skater_id);
+    for delete using (auth.uid() = user_id);
 
 alter table public.submissions enable row level security;
 create policy "authenticated can read submissions" on public.submissions
     for select using (auth.uid() is not null);
 create policy "submitters can insert" on public.submissions
-    for insert with check (auth.uid() = submitted_by);
+    for insert with check (auth.uid() = user_id);
 create policy "submitters can update" on public.submissions
-    for update using (auth.uid() = submitted_by) with check (auth.uid() = submitted_by);
+    for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "submitters can delete" on public.submissions
-    for delete using (auth.uid() = submitted_by);
+    for delete using (auth.uid() = user_id);
 
 alter table public.submission_votes enable row level security;
 create policy "authenticated can read submission_votes" on public.submission_votes
     for select using (auth.uid() is not null);
 create policy "voters can insert" on public.submission_votes
-    for insert with check (auth.uid() = voter_id);
+    for insert with check (auth.uid() = user_id);
 create policy "voters can update" on public.submission_votes
-    for update using (auth.uid() = voter_id) with check (auth.uid() = voter_id);
+    for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "voters can delete" on public.submission_votes
-    for delete using (auth.uid() = voter_id);
+    for delete using (auth.uid() = user_id);

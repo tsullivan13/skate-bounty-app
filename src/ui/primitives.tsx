@@ -2,6 +2,7 @@
 import React, { PropsWithChildren } from 'react';
 import {
     ActivityIndicator,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -12,8 +13,25 @@ import {
 } from 'react-native';
 import { palette, radius, shadow, space, type } from '../../constants/theme';
 
-export function Screen({ children }: PropsWithChildren) {
-    return <View style={styles.screen}>{children}</View>;
+export function Screen({
+    children,
+    scrollable = false,
+    contentContainerStyle,
+}: PropsWithChildren<{ scrollable?: boolean; contentContainerStyle?: ViewProps['style'] }>) {
+    if (scrollable) {
+        return (
+            <ScrollView
+                style={styles.screen}
+                contentContainerStyle={[styles.screenContent, styles.scrollContent, contentContainerStyle]}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
+                {children}
+            </ScrollView>
+        );
+    }
+
+    return <View style={[styles.screen, styles.screenContent, contentContainerStyle]}>{children}</View>;
 }
 
 export function Title({ children }: PropsWithChildren) {
@@ -123,9 +141,14 @@ const styles = StyleSheet.create({
     screen: {
         flex: 1,
         backgroundColor: palette.bg,
+    },
+    screenContent: {
         padding: space.xl,
         gap: space.lg,
         paddingTop: space.xl + 4,
+    },
+    scrollContent: {
+        flexGrow: 1,
     },
     card: {
         backgroundColor: palette.card,

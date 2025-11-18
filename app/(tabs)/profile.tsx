@@ -97,7 +97,7 @@ export default function ProfileTab() {
     );
 
     return (
-        <Screen>
+        <Screen scrollable>
             <View style={{ gap: space.md }}>
                 <Title>Profile</Title>
                 <Muted>Update your handle and keep your access info handy.</Muted>

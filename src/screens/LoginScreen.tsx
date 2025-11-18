@@ -1,8 +1,10 @@
 // src/screens/LoginScreen.tsx
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { palette, radius, space } from "../../constants/theme";
 import { supabase } from "../lib/supabase";
+import { Button, Card, H2, Input, Muted, Screen, Title } from "../ui/primitives";
 
 /**
  * This screen supports:
@@ -66,44 +68,66 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={{ padding: 24, gap: 12 }}>
-            <Text style={{ fontSize: 24, fontWeight: "700" }}>
-                {isSignup ? "Create account" : "Sign in"}
-            </Text>
+        <Screen>
+            <Card elevated style={styles.card}>
+                <Title>{isSignup ? "Create account" : "Welcome back"}</Title>
+                <Muted>{isSignup ? "Sign up with email and password." : "Sign in to continue."}</Muted>
 
-            <TextInput
-                placeholder="email@example.com"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
-            />
+                <View style={{ gap: space.sm }}>
+                    <View style={{ gap: space.xs }}>
+                        <H2>Email</H2>
+                        <Input
+                            placeholder="email@example.com"
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                        />
+                    </View>
 
-            <TextInput
-                placeholder="password"
-                value={pw}
-                onChangeText={setPw}
-                secureTextEntry
-                style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
-            />
+                    <View style={{ gap: space.xs }}>
+                        <H2>Password</H2>
+                        <Input
+                            placeholder="••••••••"
+                            value={pw}
+                            onChangeText={setPw}
+                            secureTextEntry
+                        />
+                    </View>
+                </View>
 
-            <Button
-                title={loading ? "Please wait..." : isSignup ? "Sign up" : "Sign in"}
-                onPress={auth}
-                disabled={loading}
-            />
+                {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
-            {formError ? (
-                <Text style={{ color: "#b00020", marginTop: 8 }}>{formError}</Text>
-            ) : null}
+                <View style={{ gap: space.sm }}>
+                    <Button onPress={auth} loading={loading}>
+                        {isSignup ? "Create account" : "Sign in"}
+                    </Button>
 
-            <Text
-                style={{ textAlign: "center", marginTop: 8 }}
-                onPress={() => setIsSignup(!isSignup)}
-            >
-                {isSignup ? "Have an account? Sign in" : "New here? Create account"}
-            </Text>
-        </View>
+                    <Button kind="ghost" onPress={() => setIsSignup(!isSignup)}>
+                        {isSignup ? "Have an account? Sign in" : "New here? Create account"}
+                    </Button>
+                </View>
+            </Card>
+
+            <Card>
+                <H2>Tips</H2>
+                <Muted>
+                    Ensure Supabase email auth is enabled and confirmations are handled if required. Password
+                    must meet your Supabase policy.
+                </Muted>
+            </Card>
+        </Screen>
     );
 }
+
+const styles = StyleSheet.create({
+    card: {
+        gap: space.md,
+    },
+    error: {
+        color: palette.danger,
+        backgroundColor: palette.subtle,
+        borderRadius: radius.md,
+        padding: space.sm,
+    },
+});

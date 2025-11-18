@@ -310,6 +310,8 @@ export default function BountyDetail() {
     const onSubmitProof = useCallback(async () => {
         if (!requireAuth()) return;
         if (!bountyId) return;
+        if (!accepted) return Alert.alert('Accept first', 'Please accept this bounty before submitting proof.');
+
         const url = igUrl.trim();
         const iso = postedAt.trim();
 
@@ -319,12 +321,13 @@ export default function BountyDetail() {
         if (!iso) return Alert.alert('Validation', 'Enter the post ISO timestamp.');
         const dt = new Date(iso);
         if (isNaN(dt.getTime())) return Alert.alert('Validation', 'Invalid ISO timestamp.');
+        const isoValue = dt.toISOString();
 
         try {
             const { data, error } = await supabase.rpc('rpc_submit_proof', {
                 p_bounty: bountyId,
                 p_media_url: url,
-                p_external_posted_at: iso,
+                p_external_posted_at: isoValue,
             });
             if (error) throw error;
             setMySubmission(data as Submission);
@@ -335,7 +338,7 @@ export default function BountyDetail() {
         } catch (err: any) {
             Alert.alert('Submission failed', err?.message ?? 'Could not submit proof.');
         }
-    }, [bountyId, igUrl, postedAt, loadAll, requireAuth]);
+    }, [accepted, bountyId, igUrl, loadAll, postedAt, requireAuth]);
 
     const onVote = useCallback(async (submissionId: UUID) => {
         try {

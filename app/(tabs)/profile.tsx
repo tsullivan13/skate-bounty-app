@@ -1,9 +1,10 @@
 // app/(tabs)/profile.tsx
 import React, { useEffect, useState } from "react";
-import { Button, StyleSheet, Text, TextInput, View } from "react-native";
-import { palette } from "../../constants/theme";
+import { StyleSheet, Text, View } from "react-native";
+import { palette, space } from "../../constants/theme";
 import { getMyProfile, Profile, upsertMyHandle } from "../../src/lib/profiles";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { Button, Card, H2, Input, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
 export default function ProfileTab() {
     const { session, signOut } = useAuth();
@@ -60,58 +61,65 @@ export default function ProfileTab() {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Profile</Text>
+        <Screen>
+            <View style={{ gap: space.md }}>
+                <Title>Profile</Title>
+                <Muted>Update your handle and keep your access info handy.</Muted>
 
-            {!session ? (
-                <Text style={{ color: palette.textMuted }}>You are not signed in.</Text>
-            ) : loading ? (
-                <Text style={{ color: palette.textMuted }}>Loading profile…</Text>
-            ) : (
-                <>
-                    <Text style={{ color: palette.text }}>Email: {session?.user?.email}</Text>
-                    <Text style={{ color: palette.text }}>User ID: {session?.user?.id}</Text>
-                    {profile?.handle ? (
-                        <Text style={{ color: palette.textMuted }}>Current handle: {profile.handle}</Text>
-                    ) : null}
+                {!session ? (
+                    <Card elevated>
+                        <H2>Signed out</H2>
+                        <Muted>Log in to manage your profile.</Muted>
+                    </Card>
+                ) : loading ? (
+                    <Card elevated>
+                        <Muted>Loading profile…</Muted>
+                    </Card>
+                ) : (
+                    <>
+                        <Card elevated style={{ gap: space.xs }}>
+                            <H2>Account</H2>
+                            <Text style={{ color: palette.text }}>Email: {session?.user?.email}</Text>
+                            <Text style={{ color: palette.textMuted }}>User ID: {session?.user?.id}</Text>
+                            {profile?.handle ? <Text style={{ color: palette.textMuted }}>Handle: @{profile.handle}</Text> : null}
+                            <Row>
+                                <Pill>Authenticated</Pill>
+                                <Pill>Supabase linked</Pill>
+                            </Row>
+                        </Card>
 
-                    <View style={{ height: 16 }} />
+                        <Card style={{ gap: space.sm }}>
+                            <H2>Handle</H2>
+                            <Input
+                                placeholder="e.g., tim_skates"
+                                placeholderTextColor={palette.textMuted}
+                                value={handle}
+                                onChangeText={setHandle}
+                            />
+                            <Row style={{ justifyContent: "space-between" }}>
+                                {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : <Muted>Used in submissions.</Muted>}
+                                {saveMsg ? <Text style={styles.success}>{saveMsg}</Text> : null}
+                            </Row>
+                            <Button onPress={saveHandle} loading={saving}>
+                                Save handle
+                            </Button>
+                        </Card>
 
-                    <Text style={{ fontWeight: "600", color: palette.text }}>Handle</Text>
-                    <TextInput
-                        placeholder="e.g., tim_skates"
-                        placeholderTextColor={palette.textMuted}
-                        value={handle}
-                        onChangeText={setHandle}
-                        style={styles.input}
-                    />
-
-                    <View style={{ height: 8 }} />
-
-                    <Button title={saving ? "Saving…" : "Save"} onPress={saveHandle} disabled={saving} />
-
-                    {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
-                    {saveMsg ? <Text style={styles.success}>{saveMsg}</Text> : null}
-
-                    <View style={{ height: 24 }} />
-                    <Button title="Sign Out" onPress={signOut} />
-                </>
-            )}
-        </View>
+                        <Card>
+                            <H2>Session</H2>
+                            <Muted>Signed in with Supabase auth.</Muted>
+                            <Button kind="ghost" onPress={signOut}>
+                                Sign out
+                            </Button>
+                        </Card>
+                    </>
+                )}
+            </View>
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 24, gap: 12, flex: 1, backgroundColor: palette.bg },
-    title: { fontSize: 24, fontWeight: "700", color: palette.text },
-    input: {
-        borderWidth: 1,
-        borderRadius: 8,
-        padding: 12,
-        borderColor: palette.outline,
-        backgroundColor: palette.subtle,
-        color: palette.text,
-    },
-    error: { color: palette.danger, marginTop: 8 },
-    success: { color: palette.primary, marginTop: 8 },
+    error: { color: palette.danger },
+    success: { color: palette.primary },
 });

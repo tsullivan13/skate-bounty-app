@@ -96,7 +96,20 @@ export default function CreateBounty() {
                 <Screen>
                     <View style={styles.content}>
                         <Title>Create Bounty</Title>
-                        <Muted>Share the trick, reward, and location so skaters can jump in.</Muted>
+                        <Muted>Draft a clear challenge, attach a reward, and point skaters to the right spot.</Muted>
+
+                        <Card elevated style={{ gap: space.xs }}>
+                            <H2>Make it compelling</H2>
+                            <Muted>
+                                Add context for the trick, pick a reward type, and include an expiration so it feels
+                                official.
+                            </Muted>
+                            <Row>
+                                <Pill>Rewards guide buy-in</Pill>
+                                <Pill>Attach a spot</Pill>
+                                <Pill>Set a lifecycle</Pill>
+                            </Row>
+                        </Card>
 
                         <Card elevated style={{ gap: space.sm }}>
                             <H2>Details</H2>

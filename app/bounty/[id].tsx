@@ -1,7 +1,8 @@
 // app/bounty/[id].tsx
+import * as WebBrowser from 'expo-web-browser';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import {
     Badge,
     Button,
@@ -48,11 +49,75 @@ type Submission = {
 type SubmissionWithVotes = Submission & { vote_count?: number | null };
 
 const IG_URL_RE = /^https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\/[A-Za-z0-9_-]+\/?/i;
+const IG_EMBED_RE = /^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)(?:[\/?#]|$)/i;
 
 function fmt(d?: string | null) {
     if (!d) return '';
     const t = new Date(d);
     return isNaN(t.getTime()) ? d : t.toLocaleString();
+}
+
+function extractInstagramEmbed(url?: string | null) {
+    if (!url) return null;
+    const match = url.match(IG_EMBED_RE);
+    if (!match) return null;
+    const type = match[1];
+    const slug = match[2];
+    if (!slug || !type) return null;
+    return {
+        embedUrl: `https://www.instagram.com/${type}/${slug}/embed`,
+        mediaUrl: `https://www.instagram.com/${type}/${slug}/media/?size=l`,
+        permalink: `https://www.instagram.com/${type}/${slug}/`,
+    };
+}
+
+function InstagramEmbed({ url }: { url?: string | null }) {
+    const data = useMemo(() => extractInstagramEmbed(url), [url]);
+
+    if (!data) {
+        return <Mono>{url ?? '—'}</Mono>;
+    }
+
+    const openInBrowser = () => WebBrowser.openBrowserAsync(data.permalink);
+
+    if (Platform.OS === 'web') {
+        return (
+            <View style={{ width: '100%', maxWidth: 540, alignSelf: 'center', gap: 8 }}>
+                {React.createElement('iframe', {
+                    src: data.embedUrl,
+                    width: '100%',
+                    height: 540,
+                    style: {
+                        borderRadius: 12,
+                        border: '1px solid #1E314A',
+                        overflow: 'hidden',
+                        backgroundColor: '#000',
+                    },
+                    allow: 'encrypted-media *; clipboard-write',
+                    allowFullScreen: true,
+                    loading: 'lazy',
+                })}
+                <Button kind="ghost" onPress={openInBrowser}>
+                    Open on Instagram
+                </Button>
+            </View>
+        );
+    }
+
+    return (
+        <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <Image
+                source={{ uri: data.mediaUrl }}
+                style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: '#000' }}
+                resizeMode="cover"
+            />
+            <View style={{ padding: 12 }}>
+                <Button kind="ghost" onPress={openInBrowser}>
+                    Open on Instagram
+                </Button>
+            </View>
+        </Card>
+    );
 }
 
 export default function BountyDetail() {
@@ -397,7 +462,7 @@ export default function BountyDetail() {
                             <>
                                 <Muted>You already submitted for this bounty.</Muted>
                                 <Card>
-                                    <Mono>URL: {mySubmission.media_url ?? '—'}</Mono>
+                                    <InstagramEmbed url={mySubmission.media_url} />
                                     <Mono>Posted: {fmt(mySubmission.external_posted_at)}</Mono>
                                     <Mono>Submitted: {fmt(mySubmission.created_at)}</Mono>
                                 </Card>
@@ -439,7 +504,7 @@ export default function BountyDetail() {
                                 const voted = votedIds.has(s.id);
                                 return (
                                     <Card key={s.id} style={{ marginBottom: 12 }}>
-                                        <Mono>{s.media_url}</Mono>
+                                        <InstagramEmbed url={s.media_url} />
                                         <Muted>
                                             By {displayName(s.user_id)} • Posted {fmt(s.external_posted_at)} • Submitted
                                             {" "}

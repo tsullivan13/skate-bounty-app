@@ -11,6 +11,10 @@ export default function CreateBounty() {
     const { session } = useAuth();
     const [trick, setTrick] = useState("");
     const [reward, setReward] = useState("");
+    const [rewardType, setRewardType] = useState("cash");
+    const [rewardDescription, setRewardDescription] = useState("");
+    const [expiresAt, setExpiresAt] = useState("");
+    const [status, setStatus] = useState("open");
     const [loading, setLoading] = useState(false);
 
     const [spots, setSpots] = useState<Spot[]>([]);
@@ -37,24 +41,37 @@ export default function CreateBounty() {
             return;
         }
 
-        if (!trick.trim() || !reward.trim()) {
-            Alert.alert("Missing fields", "Please enter both a trick and reward.");
+        if (!trick.trim()) {
+            Alert.alert("Missing fields", "Please enter a trick.");
             return;
         }
 
         setLoading(true);
         try {
             const trickText = trick.trim();
-            const rewardText = reward.trim();
+            const rewardVal = reward.trim() ? Number(reward.trim()) : null;
+            if (reward.trim() && Number.isNaN(rewardVal)) {
+                Alert.alert("Invalid reward", "Reward must be a number if provided.");
+                setLoading(false);
+                return;
+            }
 
             await createBounty(session, {
                 trick: trickText,
-                reward: rewardText,
+                reward: rewardVal,
+                reward_type: rewardType,
+                reward_description: rewardDescription.trim() || null,
+                status,
                 spot_id: selectedSpotId,
+                expires_at: expiresAt.trim() || null,
             });
 
             setTrick("");
             setReward("");
+            setRewardDescription("");
+            setExpiresAt("");
+            setRewardType("cash");
+            setStatus("open");
             Alert.alert("Created", "Bounty created successfully.");
         } catch (e: any) {
             console.log("create bounty error", e);
@@ -80,12 +97,43 @@ export default function CreateBounty() {
                     />
                     <Input
                         style={styles.input}
-                        placeholder="Reward (e.g. $20, pizza, etc.)"
+                        placeholder="Reward amount (numeric)"
                         placeholderTextColor={palette.textMuted}
                         value={reward}
                         onChangeText={setReward}
+                        keyboardType="numeric"
                     />
-                    <Muted>Share what trick you want to see and what you are offering.</Muted>
+                    <Muted>
+                        Share what trick you want to see and what you are offering. Reward type and description
+                        help clarify if it is cash, gear, or something else.
+                    </Muted>
+                </Card>
+
+                <Card elevated style={{ gap: space.sm }}>
+                    <H2>Reward details</H2>
+                    <Row style={{ justifyContent: "space-between" }}>
+                        {["cash", "gear", "other"].map((option) => (
+                            <Pressable
+                                key={option}
+                                onPress={() => setRewardType(option)}
+                                style={[
+                                    styles.chip,
+                                    rewardType === option && { backgroundColor: palette.subtle, borderColor: palette.primary },
+                                ]}
+                            >
+                                <Text style={{ color: palette.text, fontWeight: "700", textTransform: "capitalize" }}>
+                                    {option}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </Row>
+                    <Input
+                        style={styles.input}
+                        placeholder="Reward description (e.g. cash prize, board, merch)"
+                        placeholderTextColor={palette.textMuted}
+                        value={rewardDescription}
+                        onChangeText={setRewardDescription}
+                    />
                 </Card>
 
                 <Card style={{ gap: space.sm }}>
@@ -107,8 +155,11 @@ export default function CreateBounty() {
                                 >
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.spotTitle}>{item.title}</Text>
-                                        {item.location_hint ? (
-                                            <Text style={styles.meta}>{item.location_hint}</Text>
+                                        {item.image_url ? <Text style={styles.meta}>{item.image_url}</Text> : null}
+                                        {(item.lat ?? null) !== null && (item.lng ?? null) !== null ? (
+                                            <Text style={styles.meta}>
+                                                Coords: {item.lat?.toFixed(4)}, {item.lng?.toFixed(4)}
+                                            </Text>
                                         ) : null}
                                     </View>
                                     {selectedSpotId === item.id ? <Pill>Attached</Pill> : null}
@@ -117,6 +168,36 @@ export default function CreateBounty() {
                         />
                     )}
                     <Muted>Select a spot to help skaters find the challenge location.</Muted>
+                </Card>
+
+                <Card style={{ gap: space.sm }}>
+                    <H2>Lifecycle</H2>
+                    <Row style={{ justifyContent: "space-between" }}>
+                        {["open", "closed"].map((option) => (
+                            <Pressable
+                                key={option}
+                                onPress={() => setStatus(option)}
+                                style={[
+                                    styles.chip,
+                                    status === option && { backgroundColor: palette.subtle, borderColor: palette.primary },
+                                ]}
+                            >
+                                <Text style={{ color: palette.text, fontWeight: "700", textTransform: "capitalize" }}>
+                                    {option}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </Row>
+                    <Input
+                        style={styles.input}
+                        placeholder="Expires at (ISO, optional)"
+                        placeholderTextColor={palette.textMuted}
+                        value={expiresAt}
+                        onChangeText={setExpiresAt}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+                    <Muted>Set status and optional expiration to communicate availability.</Muted>
                 </Card>
 
                 <Button onPress={submit} loading={loading}>
@@ -153,4 +234,14 @@ const styles = StyleSheet.create({
     },
     spotTitle: { ...type.h2 },
     meta: { color: palette.textMuted },
+    chip: {
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: palette.outline,
+        backgroundColor: palette.card,
+        flex: 1,
+        alignItems: "center",
+    },
 });

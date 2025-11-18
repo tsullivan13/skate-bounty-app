@@ -24,9 +24,12 @@ type Bounty = {
     id: UUID;
     user_id?: UUID | null;
     trick?: string | null;
-    reward?: string | null;
+    reward?: number | null;
+    reward_type?: string | null;
+    reward_description?: string | null;
     created_at: string;
     spot_id?: UUID | null;
+    status?: string | null;
     expires_at?: string | null;
 };
 
@@ -315,15 +318,22 @@ export default function BountyDetail() {
                 <Screen>
                     <Row>
                         <Title>{bounty.trick ?? 'Bounty'}</Title>
-                        {!!bounty.reward && <Badge tone="warning">Reward: {bounty.reward}</Badge>}
+                        {!!bounty.reward && (
+                            <Badge tone="warning">
+                                Reward: {bounty.reward_type ? `${bounty.reward_type} · ` : ''}${bounty.reward}
+                            </Badge>
+                        )}
                     </Row>
 
                     <Row>
                         <Pill>Starts {fmt(bounty.created_at)}</Pill>
                         {!!bounty.expires_at && <Pill>Ends {fmt(bounty.expires_at)}</Pill>}
+                        {!!bounty.status && <Badge tone="accent">{bounty.status}</Badge>}
                     </Row>
 
                     <Muted>Posted by {displayName(bounty.user_id)}</Muted>
+
+                    {bounty.reward_description ? <Muted>{bounty.reward_description}</Muted> : null}
 
                     {!accepted ? <Button onPress={onAccept}>Accept Bounty</Button> : <Badge tone="accent">Accepted</Badge>}
 

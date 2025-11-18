@@ -12,7 +12,9 @@ export default function SpotsTab() {
     const [loading, setLoading] = useState(true);
 
     const [title, setTitle] = useState("");
-    const [locationHint, setLocationHint] = useState("");
+    const [imageUrl, setImageUrl] = useState("");
+    const [lat, setLat] = useState("");
+    const [lng, setLng] = useState("");
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
@@ -38,16 +40,31 @@ export default function SpotsTab() {
             return;
         }
 
+        const latVal = lat.trim() ? Number(lat.trim()) : null;
+        const lngVal = lng.trim() ? Number(lng.trim()) : null;
+        if (lat.trim() && Number.isNaN(latVal)) {
+            Alert.alert("Invalid latitude", "Latitude must be a number.");
+            return;
+        }
+        if (lng.trim() && Number.isNaN(lngVal)) {
+            Alert.alert("Invalid longitude", "Longitude must be a number.");
+            return;
+        }
+
         setCreating(true);
         try {
             const spot = await createSpot(session, {
                 title: title.trim(),
-                location_hint: locationHint.trim() || null,
+                image_url: imageUrl.trim() || null,
+                lat: latVal,
+                lng: lngVal,
             });
 
             setSpots((prev) => [spot, ...prev]);
             setTitle("");
-            setLocationHint("");
+            setImageUrl("");
+            setLat("");
+            setLng("");
         } catch (e: any) {
             console.log("create spot error", e);
             Alert.alert("Error", e?.message ?? "Failed to create spot");
@@ -72,13 +89,33 @@ export default function SpotsTab() {
                     />
                     <Input
                         style={styles.input}
-                        placeholder="Location hint (optional)"
+                        placeholder="Image URL (optional)"
                         placeholderTextColor={palette.textMuted}
-                        value={locationHint}
-                        onChangeText={setLocationHint}
+                        value={imageUrl}
+                        onChangeText={setImageUrl}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                     />
+                    <Row style={{ gap: space.sm }}>
+                        <Input
+                            style={[styles.input, { flex: 1 }]}
+                            placeholder="Lat (optional)"
+                            placeholderTextColor={palette.textMuted}
+                            value={lat}
+                            onChangeText={setLat}
+                            keyboardType="numeric"
+                        />
+                        <Input
+                            style={[styles.input, { flex: 1 }]}
+                            placeholder="Lng (optional)"
+                            placeholderTextColor={palette.textMuted}
+                            value={lng}
+                            onChangeText={setLng}
+                            keyboardType="numeric"
+                        />
+                    </Row>
                     <Muted>
-                        Images aren&apos;t supported yet, but you can still share a title and optional location hint.
+                        Spots now support optional imagery and coordinates to help skaters find the location.
                     </Muted>
                     <Row style={{ justifyContent: "flex-end" }}>
                         <Button onPress={handleCreateSpot} loading={creating}>
@@ -101,7 +138,12 @@ export default function SpotsTab() {
                                 <View style={styles.spotCard}>
                                     <View style={{ flex: 1, gap: space.xs }}>
                                         <Text style={styles.spotTitle}>{item.title}</Text>
-                                        {item.location_hint ? <Text style={styles.meta}>{item.location_hint}</Text> : null}
+                                        {item.image_url ? <Text style={styles.meta}>{item.image_url}</Text> : null}
+                                        {(item.lat ?? null) !== null && (item.lng ?? null) !== null ? (
+                                            <Text style={styles.meta}>
+                                                Coords: {item.lat?.toFixed(4)}, {item.lng?.toFixed(4)}
+                                            </Text>
+                                        ) : null}
                                         <Text style={styles.meta}>
                                             Added {new Date(item.created_at).toLocaleString()}
                                         </Text>

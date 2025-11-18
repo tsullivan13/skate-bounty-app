@@ -153,10 +153,12 @@ export default function HomeTab() {
                 : undefined;
 
             const rewardLabel = (() => {
-              if (item.reward === null || item.reward === undefined || item.reward === "") {
+              if (item.reward === null || item.reward === undefined) {
                 return "—";
               }
-              return typeof item.reward === "number" ? `$${item.reward}` : String(item.reward);
+              const base = typeof item.reward === "number" ? `$${item.reward}` : String(item.reward);
+              if (item.reward_type) return `${item.reward_type} · ${base}`;
+              return base;
             })();
 
             return (
@@ -169,9 +171,20 @@ export default function HomeTab() {
                     <Text style={styles.trick}>{item.trick}</Text>
                     <Text style={styles.reward}>Reward: {rewardLabel}</Text>
                     <Text style={styles.meta}>
-                      {s ? `@ ${s.title}${s.location_hint ? ` (${s.location_hint})` : ""} • ` : ""}
+                      {s ? `@ ${s.title}${s.image_url ? ` (${s.image_url})` : ""} • ` : ""}
                       by {displayName(item.user_id)} • {new Date(item.created_at).toLocaleString()}
                     </Text>
+                    {item.reward_description ? (
+                      <Text style={styles.meta}>{item.reward_description}</Text>
+                    ) : null}
+                    <View style={{ flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                      {item.status ? (
+                        <Text style={[styles.badge, styles.badgeAccent]}>{item.status}</Text>
+                      ) : null}
+                      {item.expires_at ? (
+                        <Text style={styles.badge}>Expires {new Date(item.expires_at).toLocaleDateString()}</Text>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
               </Pressable>
@@ -218,4 +231,17 @@ const styles = StyleSheet.create({
   },
   toggleOn: { backgroundColor: palette.subtle },
   toggleText: { fontWeight: "600", color: palette.text },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: palette.outline,
+    color: palette.textMuted,
+    fontSize: 12,
+  },
+  badgeAccent: {
+    borderColor: palette.accent,
+    color: palette.accent,
+  },
 });

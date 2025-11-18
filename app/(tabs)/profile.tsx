@@ -1,8 +1,10 @@
 // app/(tabs)/profile.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { palette, space } from "../../constants/theme";
+import { fetchBountiesByUser, type Bounty } from "../../src/lib/bounties";
 import { getMyProfile, Profile, upsertMyHandle } from "../../src/lib/profiles";
+import { fetchSubmissionsByUser, SubmissionWithVotes } from "../../src/lib/submissions";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { Button, Card, H2, Input, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
@@ -14,12 +16,17 @@ export default function ProfileTab() {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [saveMsg, setSaveMsg] = useState<string | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
+    const [activityLoading, setActivityLoading] = useState(false);
+    const [myBounties, setMyBounties] = useState<Bounty[]>([]);
+    const [mySubmissions, setMySubmissions] = useState<SubmissionWithVotes[]>([]);
 
     useEffect(() => {
         if (!session) {
             setProfile(null);
             setHandle("");
             setLoading(false);
+            setMyBounties([]);
+            setMySubmissions([]);
             return;
         }
         (async () => {
@@ -32,6 +39,25 @@ export default function ProfileTab() {
                 console.log("getMyProfile error:", e);
             } finally {
                 setLoading(false);
+            }
+        })();
+    }, [session]);
+
+    useEffect(() => {
+        if (!session) return;
+        setActivityLoading(true);
+        (async () => {
+            try {
+                const [bounties, submissions] = await Promise.all([
+                    fetchBountiesByUser(session.user.id),
+                    fetchSubmissionsByUser(session.user.id),
+                ]);
+                setMyBounties(bounties);
+                setMySubmissions(submissions);
+            } catch (e) {
+                console.log("load activity error", e);
+            } finally {
+                setActivityLoading(false);
             }
         })();
     }, [session]);
@@ -60,6 +86,16 @@ export default function ProfileTab() {
         }
     };
 
+    const rewardLabel = useMemo(
+        () =>
+            (b: Bounty) => {
+                if (b.reward === null || b.reward === undefined) return "—";
+                const base = typeof b.reward === "number" ? `$${b.reward}` : String(b.reward);
+                return b.reward_type ? `${b.reward_type} · ${base}` : base;
+            },
+        [],
+    );
+
     return (
         <Screen>
             <View style={{ gap: space.md }}>
@@ -81,7 +117,9 @@ export default function ProfileTab() {
                             <H2>Account</H2>
                             <Text style={{ color: palette.text }}>Email: {session?.user?.email}</Text>
                             <Text style={{ color: palette.textMuted }}>User ID: {session?.user?.id}</Text>
-                            {profile?.handle ? <Text style={{ color: palette.textMuted }}>Handle: @{profile.handle}</Text> : null}
+                            {profile?.handle ? (
+                                <Text style={{ color: palette.textMuted }}>Handle: @{profile.handle}</Text>
+                            ) : null}
                             <Row>
                                 <Pill>Authenticated</Pill>
                                 <Pill>Supabase linked</Pill>
@@ -112,6 +150,54 @@ export default function ProfileTab() {
                                 Sign out
                             </Button>
                         </Card>
+
+                        <Card style={{ gap: space.sm }}>
+                            <H2>My bounties</H2>
+                            {activityLoading ? (
+                                <Muted>Loading your bounties…</Muted>
+                            ) : myBounties.length === 0 ? (
+                                <Muted>You have not posted any bounties yet.</Muted>
+                            ) : (
+                                myBounties.slice(0, 5).map((b) => (
+                                    <Card key={b.id} elevated style={styles.activityCard}>
+                                        <Text style={styles.itemTitle}>{b.trick}</Text>
+                                        <Row style={{ justifyContent: "space-between" }}>
+                                            <Muted>{new Date(b.created_at).toLocaleString()}</Muted>
+                                            <Pill>{b.status ?? "open"}</Pill>
+                                        </Row>
+                                        <Muted>Reward: {rewardLabel(b)}</Muted>
+                                    </Card>
+                                ))
+                            )}
+                            {myBounties.length > 5 ? (
+                                <Muted>Showing latest 5 of {myBounties.length}.</Muted>
+                            ) : null}
+                        </Card>
+
+                        <Card style={{ gap: space.sm }}>
+                            <H2>My submissions</H2>
+                            {activityLoading ? (
+                                <Muted>Loading your submissions…</Muted>
+                            ) : mySubmissions.length === 0 ? (
+                                <Muted>Submit proof on a bounty to see it here.</Muted>
+                            ) : (
+                                mySubmissions.slice(0, 5).map((s) => (
+                                    <Card key={s.id} elevated style={styles.activityCard}>
+                                        <Text style={styles.itemTitle}>{s.media_url ?? "No link"}</Text>
+                                        <Muted>
+                                            Posted {s.external_posted_at ? new Date(s.external_posted_at).toLocaleString() : "—"}
+                                        </Muted>
+                                        <Row style={{ justifyContent: "space-between" }}>
+                                            <Muted>Submitted {new Date(s.created_at).toLocaleString()}</Muted>
+                                            <Pill>{(s.vote_count ?? 0) + " votes"}</Pill>
+                                        </Row>
+                                    </Card>
+                                ))
+                            )}
+                            {mySubmissions.length > 5 ? (
+                                <Muted>Showing latest 5 of {mySubmissions.length}.</Muted>
+                            ) : null}
+                        </Card>
                     </>
                 )}
             </View>
@@ -122,4 +208,6 @@ export default function ProfileTab() {
 const styles = StyleSheet.create({
     error: { color: palette.danger },
     success: { color: palette.primary },
+    itemTitle: { color: palette.text, fontWeight: "700" },
+    activityCard: { gap: space.xs },
 });

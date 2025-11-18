@@ -54,6 +54,17 @@ export async function fetchBounties(): Promise<Bounty[]> {
     return data as Bounty[];
 }
 
+export async function fetchBountiesByUser(userId: string): Promise<Bounty[]> {
+    const { data, error } = await supabase
+        .from("bounties")
+        .select("id,user_id,trick,reward,reward_type,status,spot_id,expires_at,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []) as Bounty[];
+}
+
 export function subscribeBounties(
     onInsert: (row: Bounty) => void,
     onUpdate?: (row: Bounty) => void,

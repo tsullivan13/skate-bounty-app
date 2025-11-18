@@ -29,3 +29,16 @@ export async function upsertMyHandle(session: Session, handle: string) {
     if (error) throw error;
     return data as Profile;
 }
+
+export async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
+    const uniqueIds = Array.from(new Set(ids));
+    if (uniqueIds.length === 0) return [];
+
+    const { data, error } = await supabase
+        .from("profiles")
+        .select("id, handle, created_at")
+        .in("id", uniqueIds);
+
+    if (error) throw error;
+    return (data ?? []) as Profile[];
+}

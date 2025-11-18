@@ -1,16 +1,18 @@
 // app/(tabs)/index.tsx
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { palette } from "../../constants/theme";
 import { Bounty, fetchBounties, subscribeBounties } from "../../src/lib/bounties";
+import { fetchProfilesByIds, Profile } from "../../src/lib/profiles";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
 
@@ -20,8 +22,33 @@ export default function HomeTab() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMine, setFilterMine] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [spots, setSpots] = useState<Spot[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+
+  const upsertProfiles = useCallback((list: Profile[]) => {
+    if (!list.length) return;
+    setProfiles((prev) => {
+      const next = { ...prev };
+      list.forEach((p) => {
+        next[p.id] = p;
+      });
+      return next;
+    });
+  }, []);
+
+  const loadProfilesForIds = useCallback(
+    async (ids: string[]) => {
+      try {
+        const fetched = await fetchProfilesByIds(ids);
+        upsertProfiles(fetched);
+      } catch (e) {
+        console.log("Error loading profiles:", e);
+      }
+    },
+    [upsertProfiles]
+  );
 
   useEffect(() => {
     (async () => {
@@ -29,6 +56,7 @@ export default function HomeTab() {
         const [list, s] = await Promise.all([fetchBounties(), fetchSpots()]);
         setBounties(list);
         setSpots(s);
+        await loadProfilesForIds(list.map((b) => b.user_id));
       } catch (e) {
         console.log("Error loading feed:", e);
       } finally {
@@ -36,16 +64,19 @@ export default function HomeTab() {
         // spot loading state is implicit via the array length
       }
     })();
-  }, []);
+  }, [loadProfilesForIds]);
 
   useEffect(() => {
     const unsubscribe = subscribeBounties(
-      (row) => setBounties((prev) => [row, ...prev]),
+      (row) => {
+        setBounties((prev) => [row, ...prev]);
+        loadProfilesForIds([row.user_id]);
+      },
       (row) => setBounties((prev) => prev.map((b) => (b.id === row.id ? row : b))),
       (row) => setBounties((prev) => prev.filter((b) => b.id !== row.id))
     );
     return unsubscribe;
-  }, []);
+  }, [loadProfilesForIds]);
 
   const spotById = useMemo(() => {
     const m = new Map<string, Spot>();
@@ -57,6 +88,29 @@ export default function HomeTab() {
     if (!filterMine || !session) return bounties;
     return bounties.filter((b) => b.user_id === session.user.id);
   }, [bounties, filterMine, session]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [list, s] = await Promise.all([fetchBounties(), fetchSpots()]);
+      setBounties(list);
+      setSpots(s);
+      await loadProfilesForIds(list.map((b) => b.user_id));
+    } catch (e) {
+      console.log("Refresh error:", e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadProfilesForIds]);
+
+  const displayName = useCallback(
+    (userId: string) => {
+      const handle = profiles[userId]?.handle;
+      if (handle) return `@${handle}`;
+      return `${userId.slice(0, 6)}…`;
+    },
+    [profiles]
+  );
 
   if (loading) {
     return (
@@ -84,6 +138,14 @@ export default function HomeTab() {
         <FlatList
           data={filtered}
           keyExtractor={(b) => b.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={palette.text}
+              titleColor={palette.text}
+            />
+          }
           renderItem={({ item }) => {
             const s =
               (item as any).spot_id
@@ -107,9 +169,8 @@ export default function HomeTab() {
                     <Text style={styles.trick}>{item.trick}</Text>
                     <Text style={styles.reward}>Reward: {rewardLabel}</Text>
                     <Text style={styles.meta}>
-                      {s ? `@ ${s.title} • ` : ""}
-                      by {item.user_id.slice(0, 6)}… •{" "}
-                      {new Date(item.created_at).toLocaleString()}
+                      {s ? `@ ${s.title}${s.location_hint ? ` (${s.location_hint})` : ""} • ` : ""}
+                      by {displayName(item.user_id)} • {new Date(item.created_at).toLocaleString()}
                     </Text>
                   </View>
                 </View>

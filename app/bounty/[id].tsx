@@ -15,6 +15,7 @@ import {
     Screen,
     Title,
 } from '../../src/ui/primitives';
+import { fetchProfilesByIds, Profile } from '../../src/lib/profiles';
 import { supabase } from '../../src/lib/supabase';
 
 type UUID = string;
@@ -62,6 +63,7 @@ export default function BountyDetail() {
     const [submissions, setSubmissions] = useState<SubmissionWithVotes[]>([]);
     const [votedIds, setVotedIds] = useState<Set<UUID>>(new Set());
     const [loading, setLoading] = useState(true);
+    const [profiles, setProfiles] = useState<Record<string, Profile>>({});
 
     const [igUrl, setIgUrl] = useState('');
     const [postedAt, setPostedAt] = useState('');
@@ -148,6 +150,24 @@ export default function BountyDetail() {
                 }
             }
             setSubmissions(subs);
+
+            const profileIds: UUID[] = [];
+            if (bnty?.user_id) profileIds.push(bnty.user_id as UUID);
+            subs.forEach((s) => profileIds.push(s.user_id));
+            try {
+                const fetched = await fetchProfilesByIds(profileIds);
+                if (fetched.length) {
+                    setProfiles((prev) => {
+                        const next = { ...prev };
+                        fetched.forEach((p) => {
+                            next[p.id] = p;
+                        });
+                        return next;
+                    });
+                }
+            } catch (e) {
+                console.log('load profiles error', e);
+            }
 
             if (currentUser && subs.length) {
                 const ids = subs.map((s) => s.id);
@@ -246,6 +266,15 @@ export default function BountyDetail() {
         [votedIds],
     );
 
+    const displayName = useCallback(
+        (userId?: UUID | null) => {
+            if (!userId) return 'Unknown user';
+            const handle = profiles[userId]?.handle;
+            return handle ? `@${handle}` : `${userId.slice(0, 6)}…`;
+        },
+        [profiles],
+    );
+
     if (!bountyId) {
         return (
             <Screen>
@@ -293,6 +322,8 @@ export default function BountyDetail() {
                         <Pill>Starts {fmt(bounty.created_at)}</Pill>
                         {!!bounty.expires_at && <Pill>Ends {fmt(bounty.expires_at)}</Pill>}
                     </Row>
+
+                    <Muted>Posted by {displayName(bounty.user_id)}</Muted>
 
                     {!accepted ? <Button onPress={onAccept}>Accept Bounty</Button> : <Badge tone="accent">Accepted</Badge>}
 
@@ -343,7 +374,9 @@ export default function BountyDetail() {
                                     <Card key={s.id} style={{ marginBottom: 12 }}>
                                         <Mono>{s.media_url}</Mono>
                                         <Muted>
-                                            Posted {fmt(s.external_posted_at)} • Submitted {fmt(s.created_at)}
+                                            By {displayName(s.user_id)} • Posted {fmt(s.external_posted_at)} • Submitted
+                                            {" "}
+                                            {fmt(s.created_at)}
                                         </Muted>
                                         <Row style={{ justifyContent: 'space-between' }}>
                                             <Badge tone="accent">{(s.vote_count ?? 0) + ' votes'}</Badge>

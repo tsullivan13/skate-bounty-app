@@ -5,7 +5,7 @@ import { palette, radius, space, type } from "../../constants/theme";
 import { createBounty } from "../../src/lib/bounties";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
-import { Button, Card, H2, Input, Muted, Pill, Screen, Title } from "../../src/ui/primitives";
+import { Button, Card, H2, Input, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
 export default function CreateBounty() {
     const { session } = useAuth();

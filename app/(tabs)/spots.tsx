@@ -1,9 +1,10 @@
 // app/(tabs)/spots.tsx
 import React, { useEffect, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
-import { palette } from "../../constants/theme";
+import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
+import { palette, radius, space, type } from "../../constants/theme";
 import { createSpot, fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { Button, Card, H2, Input, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
 export default function SpotsTab() {
     const { session } = useAuth();
@@ -56,90 +57,86 @@ export default function SpotsTab() {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Spots</Text>
+        <Screen>
+            <View style={{ gap: space.md }}>
+                <Title>Spots</Title>
 
-            <View style={{ gap: 8 }}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Spot title"
-                    placeholderTextColor={palette.textMuted}
-                    value={title}
-                    onChangeText={setTitle}
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Location hint"
-                    placeholderTextColor={palette.textMuted}
-                    value={locationHint}
-                    onChangeText={setLocationHint}
-                />
-                <Text
-                    style={{
-                        color: palette.textMuted,
-                        fontSize: 12,
-                    }}
-                >
-                    {"Images aren't supported yet, but you can still share a title and optional location hint."}
-                </Text>
-                <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-                    <Text
-                        style={{
-                            color: creating ? palette.textMuted : palette.link,
-                            fontWeight: "600",
-                        }}
-                        onPress={creating ? undefined : handleCreateSpot}
-                    >
-                        {creating ? "Creating…" : "Create Spot"}
-                    </Text>
-                </View>
+                <Card elevated style={{ gap: space.sm }}>
+                    <H2>Share a spot</H2>
+                    <Input
+                        style={styles.input}
+                        placeholder="Spot title"
+                        placeholderTextColor={palette.textMuted}
+                        value={title}
+                        onChangeText={setTitle}
+                    />
+                    <Input
+                        style={styles.input}
+                        placeholder="Location hint (optional)"
+                        placeholderTextColor={palette.textMuted}
+                        value={locationHint}
+                        onChangeText={setLocationHint}
+                    />
+                    <Muted>
+                        Images aren&apos;t supported yet, but you can still share a title and optional location hint.
+                    </Muted>
+                    <Row style={{ justifyContent: "flex-end" }}>
+                        <Button onPress={handleCreateSpot} loading={creating}>
+                            Create spot
+                        </Button>
+                    </Row>
+                </Card>
+
+                <Card style={{ gap: space.sm }}>
+                    <H2>Community spots</H2>
+                    {loading ? (
+                        <Muted>Loading spots…</Muted>
+                    ) : spots.length === 0 ? (
+                        <Muted>No spots yet. Be the first to share one.</Muted>
+                    ) : (
+                        <FlatList
+                            data={spots}
+                            keyExtractor={(s) => s.id}
+                            renderItem={({ item }) => (
+                                <View style={styles.spotCard}>
+                                    <View style={{ flex: 1, gap: space.xs }}>
+                                        <Text style={styles.spotTitle}>{item.title}</Text>
+                                        {item.location_hint ? <Text style={styles.meta}>{item.location_hint}</Text> : null}
+                                        <Text style={styles.meta}>
+                                            Added {new Date(item.created_at).toLocaleString()}
+                                        </Text>
+                                    </View>
+                                    <Pill>Spot</Pill>
+                                </View>
+                            )}
+                        />
+                    )}
+                </Card>
             </View>
-
-            <View style={{ height: 24 }} />
-
-            {loading ? (
-                <Text style={{ color: palette.textMuted }}>Loading spots…</Text>
-            ) : (
-                <FlatList
-                    data={spots}
-                    keyExtractor={(s) => s.id}
-                    renderItem={({ item }) => {
-                        const locHint = item.location_hint ?? undefined;
-                        return (
-                            <View style={styles.card}>
-                                <Text style={styles.spotTitle}>{item.title}</Text>
-                                <Text style={styles.meta}>
-                                    {locHint ? locHint + " • " : ""}
-                                    {new Date(item.created_at).toLocaleString()}
-                                </Text>
-                            </View>
-                        );
-                    }}
-                />
-            )}
-        </View>
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 24, gap: 12, flex: 1, backgroundColor: palette.bg },
-    title: { fontSize: 24, fontWeight: "700", color: palette.text },
     input: {
         borderWidth: 1,
-        borderRadius: 8,
-        padding: 12,
+        borderRadius: radius.md,
+        padding: space.md,
         borderColor: palette.outline,
         backgroundColor: palette.subtle,
         color: palette.text,
     },
-    card: {
-        padding: 12,
+    spotCard: {
+        padding: space.md,
         borderWidth: 1,
-        borderRadius: 10,
-        marginBottom: 12,
+        borderRadius: radius.lg,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: space.sm,
         backgroundColor: palette.card,
         borderColor: palette.outline,
+        marginBottom: space.xs,
     },
-    spotTitle: { fontSize: 18, fontWeight: "700", color: palette.text },
-    meta: { fontSize: 12, marginTop: 6, color: palette.textMuted },
+    spotTitle: { ...type.h2 },
+    meta: { color: palette.textMuted },
 });

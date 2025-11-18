@@ -1,19 +1,11 @@
 // app/(tabs)/create.tsx
 import React, { useEffect, useState } from "react";
-import {
-    Alert,
-    Button,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from "react-native";
-import { palette } from "../../constants/theme";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { palette, radius, space, type } from "../../constants/theme";
 import { createBounty } from "../../src/lib/bounties";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { Button, Card, H2, Input, Muted, Pill, Screen, Title } from "../../src/ui/primitives";
 
 export default function CreateBounty() {
     const { session } = useAuth();
@@ -73,75 +65,92 @@ export default function CreateBounty() {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Create Bounty</Text>
+        <Screen>
+            <View style={{ gap: space.md }}>
+                <Title>Create Bounty</Title>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Trick (e.g. kickflip over the rail)"
-                placeholderTextColor={palette.textMuted}
-                value={trick}
-                onChangeText={setTrick}
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Reward (e.g. $20, pizza, etc.)"
-                placeholderTextColor={palette.textMuted}
-                value={reward}
-                onChangeText={setReward}
-                keyboardType="numeric"
-            />
-
-            <View>
-                <Text style={styles.title}>Spot</Text>
-                {loadingSpots ? (
-                    <Text style={{ color: palette.textMuted }}>Loading spots…</Text>
-                ) : (
-                    <FlatList
-                        data={spots}
-                        keyExtractor={(s) => s.id}
-                        renderItem={({ item }) => (
-                            <Pressable
-                                onPress={() => setSelectedSpotId(item.id)}
-                                style={[
-                                    styles.spotRow,
-                                    selectedSpotId === item.id && styles.spotRowSelected,
-                                ]}
-                            >
-                                <Text style={{ color: palette.text }}>{item.title}</Text>
-                            </Pressable>
-                        )}
+                <Card elevated style={{ gap: space.sm }}>
+                    <H2>Details</H2>
+                    <Input
+                        style={styles.input}
+                        placeholder="Trick (e.g. kickflip over the rail)"
+                        placeholderTextColor={palette.textMuted}
+                        value={trick}
+                        onChangeText={setTrick}
                     />
-                )}
-            </View>
+                    <Input
+                        style={styles.input}
+                        placeholder="Reward (e.g. $20, pizza, etc.)"
+                        placeholderTextColor={palette.textMuted}
+                        value={reward}
+                        onChangeText={setReward}
+                    />
+                    <Muted>Share what trick you want to see and what you are offering.</Muted>
+                </Card>
 
-            <Button title={loading ? "Creating…" : "Create Bounty"} onPress={submit} disabled={loading} />
-        </View>
+                <Card style={{ gap: space.sm }}>
+                    <H2>Attach a spot</H2>
+                    {loadingSpots ? (
+                        <Muted>Loading spots…</Muted>
+                    ) : spots.length === 0 ? (
+                        <Muted>No spots yet. Create one in the Spots tab first.</Muted>
+                    ) : (
+                        <FlatList
+                            data={spots}
+                            keyExtractor={(s) => s.id}
+                            renderItem={({ item }) => (
+                                <Pressable
+                                    onPress={() =>
+                                        setSelectedSpotId((prev) => (prev === item.id ? null : item.id))
+                                    }
+                                    style={[styles.spotRow, selectedSpotId === item.id && styles.spotRowSelected]}
+                                >
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.spotTitle}>{item.title}</Text>
+                                        {item.location_hint ? (
+                                            <Text style={styles.meta}>{item.location_hint}</Text>
+                                        ) : null}
+                                    </View>
+                                    {selectedSpotId === item.id ? <Pill>Attached</Pill> : null}
+                                </Pressable>
+                            )}
+                        />
+                    )}
+                    <Muted>Select a spot to help skaters find the challenge location.</Muted>
+                </Card>
+
+                <Button onPress={submit} loading={loading}>
+                    Create bounty
+                </Button>
+            </View>
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 24, gap: 12, flex: 1, backgroundColor: palette.bg },
-    title: { fontSize: 24, fontWeight: "700", color: palette.text },
     input: {
         borderWidth: 1,
-        borderRadius: 8,
-        padding: 12,
+        borderRadius: radius.md,
+        padding: space.md,
         borderColor: palette.outline,
         backgroundColor: palette.subtle,
         color: palette.text,
     },
     spotRow: {
-        padding: 10,
+        padding: space.md,
         borderWidth: 1,
-        borderRadius: 10,
-        marginVertical: 6,
+        borderRadius: radius.lg,
+        marginVertical: space.xs,
         flexDirection: "row",
         alignItems: "center",
+        gap: space.sm,
         backgroundColor: palette.card,
         borderColor: palette.outline,
     },
     spotRowSelected: {
         backgroundColor: palette.subtle,
+        borderColor: palette.primary,
     },
+    spotTitle: { ...type.h2 },
+    meta: { color: palette.textMuted },
 });

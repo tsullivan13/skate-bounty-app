@@ -26,7 +26,6 @@ type Bounty = {
     trick?: string | null;
     reward?: number | null;
     reward_type?: string | null;
-    reward_description?: string | null;
     created_at: string;
     spot_id?: UUID | null;
     status?: string | null;
@@ -332,8 +331,6 @@ export default function BountyDetail() {
                     </Row>
 
                     <Muted>Posted by {displayName(bounty.user_id)}</Muted>
-
-                    {bounty.reward_description ? <Muted>{bounty.reward_description}</Muted> : null}
 
                     {!accepted ? <Button onPress={onAccept}>Accept Bounty</Button> : <Badge tone="accent">Accepted</Badge>}
 

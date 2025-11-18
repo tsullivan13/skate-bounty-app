@@ -174,9 +174,6 @@ export default function HomeTab() {
                       {s ? `@ ${s.title}${s.image_url ? ` (${s.image_url})` : ""} • ` : ""}
                       by {displayName(item.user_id)} • {new Date(item.created_at).toLocaleString()}
                     </Text>
-                    {item.reward_description ? (
-                      <Text style={styles.meta}>{item.reward_description}</Text>
-                    ) : null}
                     <View style={{ flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                       {item.status ? (
                         <Text style={[styles.badge, styles.badgeAccent]}>{item.status}</Text>

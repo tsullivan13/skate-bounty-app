@@ -12,7 +12,6 @@ export default function CreateBounty() {
     const [trick, setTrick] = useState("");
     const [reward, setReward] = useState("");
     const [rewardType, setRewardType] = useState("cash");
-    const [rewardDescription, setRewardDescription] = useState("");
     const [expiresAt, setExpiresAt] = useState("");
     const [status, setStatus] = useState("open");
     const [loading, setLoading] = useState(false);
@@ -60,7 +59,6 @@ export default function CreateBounty() {
                 trick: trickText,
                 reward: rewardVal,
                 reward_type: rewardType,
-                reward_description: rewardDescription.trim() || null,
                 status,
                 spot_id: selectedSpotId,
                 expires_at: expiresAt.trim() || null,
@@ -68,7 +66,6 @@ export default function CreateBounty() {
 
             setTrick("");
             setReward("");
-            setRewardDescription("");
             setExpiresAt("");
             setRewardType("cash");
             setStatus("open");
@@ -127,13 +124,6 @@ export default function CreateBounty() {
                             </Pressable>
                         ))}
                     </Row>
-                    <Input
-                        style={styles.input}
-                        placeholder="Reward description (e.g. cash prize, board, merch)"
-                        placeholderTextColor={palette.textMuted}
-                        value={rewardDescription}
-                        onChangeText={setRewardDescription}
-                    />
                 </Card>
 
                 <Card style={{ gap: space.sm }}>

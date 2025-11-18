@@ -135,7 +135,7 @@ export default function SpotsTab() {
                             data={spots}
                             keyExtractor={(s) => s.id}
                             renderItem={({ item }) => (
-                                <View style={styles.spotCard}>
+                                <Card elevated style={styles.spotCard}>
                                     <View style={{ flex: 1, gap: space.xs }}>
                                         <Text style={styles.spotTitle}>{item.title}</Text>
                                         {item.image_url ? <Text style={styles.meta}>{item.image_url}</Text> : null}
@@ -149,7 +149,7 @@ export default function SpotsTab() {
                                         </Text>
                                     </View>
                                     <Pill>Spot</Pill>
-                                </View>
+                                </Card>
                             )}
                         />
                     )}
@@ -169,14 +169,9 @@ const styles = StyleSheet.create({
         color: palette.text,
     },
     spotCard: {
-        padding: space.md,
-        borderWidth: 1,
-        borderRadius: radius.lg,
         flexDirection: "row",
         alignItems: "center",
         gap: space.sm,
-        backgroundColor: palette.card,
-        borderColor: palette.outline,
         marginBottom: space.xs,
     },
     spotTitle: { ...type.h2 },

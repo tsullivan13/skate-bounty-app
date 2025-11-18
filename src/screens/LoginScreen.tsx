@@ -69,9 +69,16 @@ export default function LoginScreen() {
 
     return (
         <Screen>
+            <View style={styles.hero}>
+                <Title>Skate Bounty</Title>
+                <Muted>Plan bounties, rally skaters, and vote on winning clips.</Muted>
+            </View>
+
             <Card elevated style={styles.card}>
                 <Title>{isSignup ? "Create account" : "Welcome back"}</Title>
-                <Muted>{isSignup ? "Sign up with email and password." : "Sign in to continue."}</Muted>
+                <Muted>
+                    {isSignup ? "Start a profile to post and accept new challenges." : "Sign in to continue."}
+                </Muted>
 
                 <View style={{ gap: space.sm }}>
                     <View style={{ gap: space.xs }}>
@@ -112,8 +119,8 @@ export default function LoginScreen() {
             <Card>
                 <H2>Tips</H2>
                 <Muted>
-                    Ensure Supabase email auth is enabled and confirmations are handled if required. Password
-                    must meet your Supabase policy.
+                    Enable email auth inside Supabase and confirm new users when required. Password policies
+                    are enforced by your Supabase project.
                 </Muted>
             </Card>
         </Screen>
@@ -121,6 +128,9 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+    hero: {
+        gap: 4,
+    },
     card: {
         gap: space.md,
     },

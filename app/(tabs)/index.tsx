@@ -10,11 +10,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { palette } from "../../constants/theme";
+import { palette, space } from "../../constants/theme";
 import { Bounty, fetchBounties, subscribeBounties } from "../../src/lib/bounties";
 import { fetchProfilesByIds, Profile } from "../../src/lib/profiles";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { Badge, Card, H2, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
 export default function HomeTab() {
   const router = useRouter();
@@ -114,131 +115,138 @@ export default function HomeTab() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
+      <Screen>
+        <Card elevated style={{ alignItems: "center", gap: space.sm }}>
+          <ActivityIndicator size="large" color={palette.primary} />
+          <Muted>Loading the latest challenges…</Muted>
+        </Card>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Recent Bounties</Text>
-        <Pressable
-          onPress={() => setFilterMine((v) => !v)}
-          style={[styles.toggle, filterMine && styles.toggleOn]}
-        >
-          <Text style={styles.toggleText}>{filterMine ? "My Bounties" : "All"}</Text>
-        </Pressable>
-      </View>
+    <Screen>
+      <FlatList
+        data={filtered}
+        keyExtractor={(b) => b.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ gap: space.sm, paddingBottom: space.xl }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={palette.primary}
+            titleColor={palette.text}
+          />
+        }
+        ListHeaderComponent={(
+          <View style={{ gap: space.md }}>
+            <Title>Active bounties</Title>
+            <Muted>Discover fresh challenges from the crew and share your own.</Muted>
 
-      {filtered.length === 0 ? (
-        <Text style={styles.emptyText}>No bounties yet. Create one!</Text>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(b) => b.id}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={palette.text}
-              titleColor={palette.text}
-            />
-          }
-          renderItem={({ item }) => {
-            const s =
-              (item as any).spot_id
-                ? spotById.get((item as any).spot_id as string)
-                : undefined;
+            <Row style={styles.statRow}>
+              <Card elevated style={styles.statCard}>
+                <Muted>Live</Muted>
+                <H2>{bounties.length}</H2>
+                <Text style={styles.statLabel}>Challenges posted</Text>
+              </Card>
+              <Card elevated style={styles.statCard}>
+                <Muted>{filterMine ? "Personal" : "Open"}</Muted>
+                <H2>{filterMine && session ? filtered.length : bounties.filter((b) => b.status !== "closed").length}</H2>
+                <Text style={styles.statLabel}>{filterMine ? "Mine" : "Accepting"}</Text>
+              </Card>
+            </Row>
 
-            const rewardLabel = (() => {
-              if (item.reward === null || item.reward === undefined) {
-                return "—";
-              }
-              const base = typeof item.reward === "number" ? `$${item.reward}` : String(item.reward);
-              if (item.reward_type) return `${item.reward_type} · ${base}`;
-              return base;
-            })();
+            <View style={styles.filterRow}>
+              <Text style={styles.sectionLabel}>Feed</Text>
+              <View style={styles.segment}>
+                <Pressable
+                  onPress={() => setFilterMine(false)}
+                  style={[styles.segmentItem, !filterMine && styles.segmentItemActive]}
+                >
+                  <Text style={[styles.segmentLabel, !filterMine && styles.segmentLabelActive]}>All</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setFilterMine(true)}
+                  style={[styles.segmentItem, filterMine && styles.segmentItemActive]}
+                >
+                  <Text style={[styles.segmentLabel, filterMine && styles.segmentLabelActive]}>Mine</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={
+          <Card elevated>
+            <H2>Nothing here yet</H2>
+            <Muted>Post the first bounty so everyone has something to chase.</Muted>
+          </Card>
+        }
+        renderItem={({ item }) => {
+          const s = (item as any).spot_id ? spotById.get((item as any).spot_id as string) : undefined;
 
-            return (
-              <Pressable
-                onPress={() => router.push(`/bounty/${item.id}`)}
-                style={styles.card}
-              >
-                <View style={{ flexDirection: "row", gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.trick}>{item.trick}</Text>
-                    <Text style={styles.reward}>Reward: {rewardLabel}</Text>
-                    <Text style={styles.meta}>
-                      {s ? `@ ${s.title}${s.image_url ? ` (${s.image_url})` : ""} • ` : ""}
-                      by {displayName(item.user_id)} • {new Date(item.created_at).toLocaleString()}
-                    </Text>
-                    <View style={{ flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-                      {item.status ? (
-                        <Text style={[styles.badge, styles.badgeAccent]}>{item.status}</Text>
-                      ) : null}
-                      {item.expires_at ? (
-                        <Text style={styles.badge}>Expires {new Date(item.expires_at).toLocaleDateString()}</Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              </Pressable>
-            );
-          }}
-        />
-      )}
-    </View>
+          const rewardLabel = (() => {
+            if (item.reward === null || item.reward === undefined) {
+              return "—";
+            }
+            const base = typeof item.reward === "number" ? `$${item.reward}` : String(item.reward);
+            if (item.reward_type) return `${item.reward_type} · ${base}`;
+            return base;
+          })();
+
+          return (
+            <Pressable onPress={() => router.push(`/bounty/${item.id}`)} style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}>
+              <Card elevated style={styles.card}>
+                <Row style={{ justifyContent: "space-between" }}>
+                  <Pill>{rewardLabel === "—" ? "No reward" : rewardLabel}</Pill>
+                  {item.status ? <Badge tone="accent">{item.status}</Badge> : null}
+                </Row>
+                <H2>{item.trick}</H2>
+                <Muted>
+                  {s ? `@ ${s.title}${s.image_url ? ` (${s.image_url})` : ""} • ` : ""}
+                  {new Date(item.created_at).toLocaleString()}
+                </Muted>
+                <Row>
+                  <Pill>{displayName(item.user_id)}</Pill>
+                  {item.expires_at ? <Badge tone="warning">Expires {new Date(item.expires_at).toLocaleDateString()}</Badge> : null}
+                </Row>
+              </Card>
+            </Pressable>
+          );
+        }}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, gap: 12, flex: 1, backgroundColor: palette.bg },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: palette.bg,
-  },
-  title: { fontSize: 24, fontWeight: "700", color: palette.text },
   card: {
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 10,
-    marginBottom: 12,
-    backgroundColor: palette.card,
-    borderColor: palette.outline,
+    gap: space.xs,
   },
-  trick: { fontSize: 18, fontWeight: "700", color: palette.text },
-  reward: { fontSize: 16, marginTop: 4, color: palette.text },
-  meta: { fontSize: 12, marginTop: 6, color: palette.textMuted },
-  emptyText: { fontSize: 14, color: palette.textMuted },
-  headerRow: {
+  filterRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  toggle: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
+  segment: {
+    flexDirection: "row",
     borderWidth: 1,
     borderColor: palette.outline,
-  },
-  toggleOn: { backgroundColor: palette.subtle },
-  toggleText: { fontWeight: "600", color: palette.text },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: palette.outline,
-    color: palette.textMuted,
-    fontSize: 12,
+    backgroundColor: palette.subtle,
   },
-  badgeAccent: {
-    borderColor: palette.accent,
-    color: palette.accent,
+  segmentItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
+  segmentItemActive: {
+    backgroundColor: palette.cardElevated,
+  },
+  segmentLabel: { color: palette.textMuted, fontWeight: "700" },
+  segmentLabelActive: { color: palette.text },
+  sectionLabel: { color: palette.textMuted, fontWeight: "700", letterSpacing: 0.2 },
+  statRow: { flex: 1, flexWrap: "nowrap" },
+  statCard: { flex: 1, gap: 2 },
+  statLabel: { color: palette.textMuted, fontSize: 13 },
 });

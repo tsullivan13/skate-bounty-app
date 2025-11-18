@@ -54,11 +54,11 @@ export function Badge({
 }: PropsWithChildren<{ tone?: 'neutral' | 'accent' | 'warning' | 'danger' }>) {
     const bg =
         tone === 'accent'
-            ? '#1E293B'
+            ? '#13233C'
             : tone === 'warning'
-                ? '#2A1F10'
+                ? '#2E2416'
                 : tone === 'danger'
-                    ? '#2A1414'
+                    ? '#2E1A1A'
                     : palette.subtle;
     const color =
         tone === 'accent'
@@ -90,7 +90,7 @@ export function Button({
         <TouchableOpacity
             onPress={onPress}
             disabled={loading}
-            style={[styles.btn, isGhost && styles.btnGhost]}
+            style={[styles.btn, isGhost && styles.btnGhost, loading && styles.btnDisabled]}
         >
             {loading ? (
                 <ActivityIndicator color={isGhost ? palette.text : palette.primaryTextOn} />
@@ -123,8 +123,9 @@ const styles = StyleSheet.create({
     screen: {
         flex: 1,
         backgroundColor: palette.bg,
-        padding: space.lg,
+        padding: space.xl,
         gap: space.lg,
+        paddingTop: space.xl + 4,
     },
     card: {
         backgroundColor: palette.card,
@@ -133,10 +134,15 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: palette.outline,
         gap: space.sm,
+        shadowColor: palette.surfaceGlow,
+        shadowOpacity: 0.25,
+        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 12 },
     },
     cardElevated: {
         backgroundColor: palette.cardElevated,
         ...shadow.card,
+        borderColor: '#1F2E45',
     },
     row: {
         flexDirection: 'row',
@@ -145,7 +151,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     pill: {
-        backgroundColor: palette.subtle,
+        backgroundColor: palette.surfaceGlow,
         paddingVertical: 6,
         paddingHorizontal: 12,
         borderRadius: radius.pill,
@@ -166,20 +172,32 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: radius.md,
         alignItems: 'center',
+        shadowColor: palette.primary,
+        shadowOpacity: 0.35,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
     },
     btnGhost: {
         backgroundColor: 'transparent',
         borderWidth: 1,
         borderColor: palette.outline,
+        shadowOpacity: 0,
+    },
+    btnDisabled: {
+        opacity: 0.75,
     },
     input: {
         borderWidth: 1,
-        borderColor: palette.outline,
+        borderColor: '#1E314A',
         backgroundColor: palette.subtle,
-        borderRadius: radius.md,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        borderRadius: radius.lg,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
         color: palette.text,
         fontSize: 16,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 8 },
     },
 });

@@ -17,6 +17,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="bounty/[id]" options={{ headerShown: true, title: 'Bounty' }} />
+        <Stack.Screen name="spot/[id]" options={{ headerShown: true, title: 'Spot' }} />
         <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack>
     </AuthProvider>

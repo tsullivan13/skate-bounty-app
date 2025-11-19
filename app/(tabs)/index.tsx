@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { palette, space } from "../../constants/theme";
+import { palette, radius, space } from "../../constants/theme";
 import { Bounty, fetchBounties, subscribeBounties } from "../../src/lib/bounties";
 import { fetchProfilesByIds, Profile } from "../../src/lib/profiles";
 import { fetchSpots, Spot } from "../../src/lib/spots";
@@ -84,6 +84,14 @@ export default function HomeTab() {
     spots.forEach((s) => m.set(s.id, s));
     return m;
   }, [spots]);
+
+  const goToSpot = useCallback(
+    (spotId?: string | null) => {
+      if (!spotId) return;
+      router.push(`/spot/${spotId}`);
+    },
+    [router]
+  );
 
   const filtered = useMemo(() => {
     if (!filterMine || !session) return bounties;
@@ -202,10 +210,14 @@ export default function HomeTab() {
                   {item.status ? <Badge tone="accent">{item.status}</Badge> : null}
                 </Row>
                 <H2>{item.trick}</H2>
-                <Muted>
-                  {s ? `@ ${s.title}${s.image_url ? ` (${s.image_url})` : ""} • ` : ""}
-                  {new Date(item.created_at).toLocaleString()}
-                </Muted>
+                <View style={styles.metaRow}>
+                  {s ? (
+                    <Pressable onPress={() => goToSpot(item.spot_id)} style={styles.spotChip}>
+                      <Text style={styles.spotChipLabel}>@ {s.title}</Text>
+                    </Pressable>
+                  ) : null}
+                  <Muted>{new Date(item.created_at).toLocaleString()}</Muted>
+                </View>
                 <Row>
                   <Pill>{displayName(item.user_id)}</Pill>
                   {item.expires_at ? <Badge tone="warning">Expires {new Date(item.expires_at).toLocaleDateString()}</Badge> : null}
@@ -249,4 +261,21 @@ const styles = StyleSheet.create({
   statRow: { flex: 1, flexWrap: "nowrap" },
   statCard: { flex: 1, gap: 2 },
   statLabel: { color: palette.textMuted, fontSize: 13 },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  spotChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: palette.outline,
+    backgroundColor: palette.subtle,
+  },
+  spotChipLabel: {
+    color: palette.accent,
+    fontWeight: "700",
+  },
 });

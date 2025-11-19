@@ -76,6 +76,36 @@ export async function fetchBountiesByUser(userId: string): Promise<Bounty[]> {
     return (data ?? []) as Bounty[];
 }
 
+export type AcceptedBounty = {
+    id: string;
+    created_at: string;
+    bounty: Bounty;
+};
+
+export async function fetchAcceptedBountiesByUser(userId: string): Promise<AcceptedBounty[]> {
+    const { data, error } = await supabase
+        .from("bounty_acceptances")
+        .select(
+            "id,created_at,bounty:bounties(id,user_id,trick,reward,reward_type,status,spot_id,expires_at,created_at)"
+        )
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return (data ?? [])
+        .map((row) => {
+            const bounty = (row as { bounty?: Bounty | null }).bounty ?? null;
+            if (!bounty) return null;
+            return {
+                id: row.id as string,
+                created_at: row.created_at as string,
+                bounty,
+            } satisfies AcceptedBounty;
+        })
+        .filter((row): row is AcceptedBounty => Boolean(row));
+}
+
 export function subscribeBounties(
     onInsert: (row: Bounty) => void,
     onUpdate?: (row: Bounty) => void,

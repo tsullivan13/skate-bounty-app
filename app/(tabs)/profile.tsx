@@ -1,14 +1,21 @@
 // app/(tabs)/profile.tsx
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { palette, space } from "../../constants/theme";
-import { fetchBountiesByUser, type Bounty } from "../../src/lib/bounties";
+import {
+    fetchAcceptedBountiesByUser,
+    fetchBountiesByUser,
+    type AcceptedBounty,
+    type Bounty,
+} from "../../src/lib/bounties";
 import { getMyProfile, Profile, upsertMyHandle } from "../../src/lib/profiles";
 import { fetchSubmissionsByUser, SubmissionWithVotes } from "../../src/lib/submissions";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { Button, Card, H2, Input, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
 export default function ProfileTab() {
+    const router = useRouter();
     const { session, signOut } = useAuth();
     const [handle, setHandle] = useState("");
     const [loading, setLoading] = useState(true);
@@ -19,6 +26,7 @@ export default function ProfileTab() {
     const [activityLoading, setActivityLoading] = useState(false);
     const [myBounties, setMyBounties] = useState<Bounty[]>([]);
     const [mySubmissions, setMySubmissions] = useState<SubmissionWithVotes[]>([]);
+    const [myAcceptances, setMyAcceptances] = useState<AcceptedBounty[]>([]);
 
     useEffect(() => {
         if (!session) {
@@ -27,6 +35,7 @@ export default function ProfileTab() {
             setLoading(false);
             setMyBounties([]);
             setMySubmissions([]);
+            setMyAcceptances([]);
             return;
         }
         (async () => {
@@ -48,12 +57,14 @@ export default function ProfileTab() {
         setActivityLoading(true);
         (async () => {
             try {
-                const [bounties, submissions] = await Promise.all([
+                const [bounties, submissions, acceptances] = await Promise.all([
                     fetchBountiesByUser(session.user.id),
                     fetchSubmissionsByUser(session.user.id),
+                    fetchAcceptedBountiesByUser(session.user.id),
                 ]);
                 setMyBounties(bounties);
                 setMySubmissions(submissions);
+                setMyAcceptances(acceptances);
             } catch (e) {
                 console.log("load activity error", e);
             } finally {
@@ -171,6 +182,32 @@ export default function ProfileTab() {
                             )}
                             {myBounties.length > 5 ? (
                                 <Muted>Showing latest 5 of {myBounties.length}.</Muted>
+                            ) : null}
+                        </Card>
+
+                        <Card style={{ gap: space.sm }}>
+                            <H2>Accepted bounties</H2>
+                            {activityLoading ? (
+                                <Muted>Loading your acceptances…</Muted>
+                            ) : myAcceptances.length === 0 ? (
+                                <Muted>Accept a bounty to track it here.</Muted>
+                            ) : (
+                                myAcceptances.slice(0, 5).map((acceptance) => (
+                                    <Card key={acceptance.id} elevated style={styles.activityCard}>
+                                        <Text style={styles.itemTitle}>{acceptance.bounty.trick}</Text>
+                                        <Muted>Accepted {new Date(acceptance.created_at).toLocaleString()}</Muted>
+                                        <Row style={{ justifyContent: "space-between" }}>
+                                            <Muted>Status: {acceptance.bounty.status ?? "open"}</Muted>
+                                            <Pill>Reward: {rewardLabel(acceptance.bounty)}</Pill>
+                                        </Row>
+                                        <Button kind="ghost" onPress={() => router.push(`/bounty/${acceptance.bounty.id}`)}>
+                                            View bounty
+                                        </Button>
+                                    </Card>
+                                ))
+                            )}
+                            {myAcceptances.length > 5 ? (
+                                <Muted>Showing latest 5 of {myAcceptances.length}.</Muted>
                             ) : null}
                         </Card>
 

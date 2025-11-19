@@ -100,7 +100,7 @@ export function Button({
     loading = false,
 }: PropsWithChildren<{
     onPress?: () => void;
-    kind?: 'primary' | 'ghost';
+    kind?: 'primary' | 'solid' | 'ghost';
     loading?: boolean;
 }>) {
     const isGhost = kind === 'ghost';

@@ -15,7 +15,7 @@ import { Bounty, fetchBounties, subscribeBounties } from "../../src/lib/bounties
 import { fetchProfilesByIds, Profile } from "../../src/lib/profiles";
 import { fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
-import { Badge, Card, H2, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
+import { Badge, Card, H2, Input, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
 export default function HomeTab() {
   const router = useRouter();
@@ -23,6 +23,8 @@ export default function HomeTab() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMine, setFilterMine] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("all");
+  const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   const [spots, setSpots] = useState<Spot[]>([]);
@@ -94,9 +96,54 @@ export default function HomeTab() {
   );
 
   const filtered = useMemo(() => {
-    if (!filterMine || !session) return bounties;
-    return bounties.filter((b) => b.user_id === session.user.id);
-  }, [bounties, filterMine, session]);
+    const mineFiltered = !filterMine || !session ? bounties : bounties.filter((b) => b.user_id === session.user.id);
+
+    const statusFiltered = mineFiltered.filter((b) => {
+      const status = (b.status ?? "open").toLowerCase();
+      if (statusFilter === "open") {
+        return status !== "closed";
+      }
+      if (statusFilter === "closed") {
+        return status === "closed";
+      }
+      return true;
+    });
+
+    const query = search.trim().toLowerCase();
+    if (!query) return statusFiltered;
+
+    return statusFiltered.filter((b) => {
+      const trickText = b.trick?.toLowerCase() ?? "";
+      const rewardText = b.reward ? String(b.reward).toLowerCase() : "";
+      const rewardType = b.reward_type?.toLowerCase() ?? "";
+      const spotTitle = b.spot_id ? spotById.get(b.spot_id)?.title?.toLowerCase() ?? "" : "";
+      const handle = profiles[b.user_id]?.handle ? `@${profiles[b.user_id]?.handle}`.toLowerCase() : "";
+      const fallback = b.user_id.slice(0, 6).toLowerCase();
+      return [trickText, rewardText, rewardType, spotTitle, handle, fallback].some((field) =>
+        field.includes(query)
+      );
+    });
+  }, [bounties, filterMine, profiles, search, session, spotById, statusFilter]);
+
+  const clearSearch = useCallback(() => setSearch(""), []);
+
+  const statusLabel = useMemo(() => {
+    switch (statusFilter) {
+      case "open":
+        return "Open only";
+      case "closed":
+        return "Closed only";
+      default:
+        return "All statuses";
+    }
+  }, [statusFilter]);
+
+  const feedDescriptor = useMemo(() => {
+    if (filterMine) {
+      return `Mine • ${statusLabel.toLowerCase()}`;
+    }
+    return statusLabel;
+  }, [filterMine, statusLabel]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -159,11 +206,27 @@ export default function HomeTab() {
                 <Text style={styles.statLabel}>Challenges posted</Text>
               </Card>
               <Card elevated style={styles.statCard}>
-                <Muted>{filterMine ? "Personal" : "Open"}</Muted>
-                <H2>{filterMine && session ? filtered.length : bounties.filter((b) => b.status !== "closed").length}</H2>
-                <Text style={styles.statLabel}>{filterMine ? "Mine" : "Accepting"}</Text>
+                <Muted>{filterMine ? "Personal feed" : "Results"}</Muted>
+                <H2>{filtered.length}</H2>
+                <Text style={styles.statLabel}>{feedDescriptor}</Text>
               </Card>
             </Row>
+
+            <View style={styles.searchRow}>
+              <Input
+                placeholder="Search trick, spot, or handle"
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.searchInput}
+              />
+              {search ? (
+                <Pressable onPress={clearSearch} style={styles.clearButton}>
+                  <Text style={styles.clearButtonLabel}>Clear</Text>
+                </Pressable>
+              ) : null}
+            </View>
 
             <View style={styles.filterRow}>
               <Text style={styles.sectionLabel}>Feed</Text>
@@ -180,6 +243,25 @@ export default function HomeTab() {
                 >
                   <Text style={[styles.segmentLabel, filterMine && styles.segmentLabelActive]}>Mine</Text>
                 </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.filterRow}>
+              <Text style={styles.sectionLabel}>Status</Text>
+              <View style={styles.segment}>
+                {["all", "open", "closed"].map((option) => (
+                  <Pressable
+                    key={option}
+                    onPress={() => setStatusFilter(option as "all" | "open" | "closed")}
+                    style={[styles.segmentItem, statusFilter === option && styles.segmentItemActive]}
+                  >
+                    <Text
+                      style={[styles.segmentLabel, statusFilter === option && styles.segmentLabelActive]}
+                    >
+                      {option === "all" ? "All" : option === "open" ? "Open" : "Closed"}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
             </View>
           </View>
@@ -261,6 +343,22 @@ const styles = StyleSheet.create({
   statRow: { flex: 1, flexWrap: "nowrap" },
   statCard: { flex: 1, gap: 2 },
   statLabel: { color: palette.textMuted, fontSize: 13 },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+  },
+  searchInput: {
+    flex: 1,
+  },
+  clearButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  clearButtonLabel: {
+    color: palette.accent,
+    fontWeight: "700",
+  },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",

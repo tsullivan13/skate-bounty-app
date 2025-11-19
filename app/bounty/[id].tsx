@@ -49,7 +49,7 @@ type Submission = {
 type SubmissionWithVotes = Submission & { vote_count?: number | null };
 
 const IG_URL_RE = /^https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\/[A-Za-z0-9_-]+\/?(?:[?#].*)?$/i;
-const IG_EMBED_RE = /^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)(?:[\/?#]|$)/i;
+const IG_EMBED_RE = /^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)\/?(?:[?#].*)?$/i;
 
 function fmt(d?: string | null) {
     if (!d) return '';
@@ -118,14 +118,17 @@ function InstagramEmbed({ url }: { url?: string | null }) {
         );
     }
 
+    const openEmbed = () => WebBrowser.openBrowserAsync(data.embedUrl);
+
     return (
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <Card style={{ padding: 0, overflow: 'hidden', gap: 0 }}>
             <Image
                 source={{ uri: data.mediaUrl }}
                 style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: '#000' }}
                 resizeMode="cover"
             />
-            <View style={{ padding: 12 }}>
+            <View style={{ padding: 12, gap: 8 }}>
+                <Button onPress={openEmbed}>Play in app</Button>
                 <Button kind="ghost" onPress={openInBrowser}>
                     Open on Instagram
                 </Button>

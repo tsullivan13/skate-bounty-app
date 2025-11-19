@@ -1,12 +1,14 @@
 // app/(tabs)/spots.tsx
-import React, { useEffect, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../../constants/theme";
 import { createSpot, fetchSpots, Spot } from "../../src/lib/spots";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { Button, Card, H2, Input, Muted, Pill, Row, Screen, Title } from "../../src/ui/primitives";
 
 export default function SpotsTab() {
+    const router = useRouter();
     const { session } = useAuth();
     const [spots, setSpots] = useState<Spot[]>([]);
     const [loading, setLoading] = useState(true);
@@ -73,6 +75,8 @@ export default function SpotsTab() {
         }
     };
 
+    const hasAnyCoords = useMemo(() => spots.some((s) => (s.lat ?? null) !== null && (s.lng ?? null) !== null), [spots]);
+
     return (
         <Screen>
             <View style={{ gap: space.md }}>
@@ -131,27 +135,37 @@ export default function SpotsTab() {
                     ) : spots.length === 0 ? (
                         <Muted>No spots yet. Be the first to share one.</Muted>
                     ) : (
-                        <FlatList
-                            data={spots}
-                            keyExtractor={(s) => s.id}
-                            renderItem={({ item }) => (
-                                <Card elevated style={styles.spotCard}>
-                                    <View style={{ flex: 1, gap: space.xs }}>
-                                        <Text style={styles.spotTitle}>{item.title}</Text>
-                                        {item.image_url ? <Text style={styles.meta}>{item.image_url}</Text> : null}
-                                        {(item.lat ?? null) !== null && (item.lng ?? null) !== null ? (
-                                            <Text style={styles.meta}>
-                                                Coords: {item.lat?.toFixed(4)}, {item.lng?.toFixed(4)}
-                                            </Text>
-                                        ) : null}
-                                        <Text style={styles.meta}>
-                                            Added {new Date(item.created_at).toLocaleString()}
-                                        </Text>
-                                    </View>
-                                    <Pill>Spot</Pill>
-                                </Card>
-                            )}
-                        />
+                        <>
+                            {hasAnyCoords ? <Muted>Tap a spot to open full details and linked bounties.</Muted> : null}
+                            <FlatList
+                                data={spots}
+                                keyExtractor={(s) => s.id}
+                                renderItem={({ item }) => (
+                                    <Pressable
+                                        onPress={() => router.push(`/spot/${item.id}`)}
+                                        style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
+                                    >
+                                        <Card elevated style={styles.spotCard}>
+                                            <View style={{ flex: 1, gap: space.xs }}>
+                                                <Text style={styles.spotTitle}>{item.title}</Text>
+                                                {item.image_url ? <Text style={styles.meta}>{item.image_url}</Text> : null}
+                                                {(item.lat ?? null) !== null && (item.lng ?? null) !== null ? (
+                                                    <Text style={styles.meta}>
+                                                        Coords: {item.lat?.toFixed(4)}, {item.lng?.toFixed(4)}
+                                                    </Text>
+                                                ) : null}
+                                                <Text style={styles.meta}>
+                                                    Added {new Date(item.created_at).toLocaleString()}
+                                                </Text>
+                                            </View>
+                                            <Pill>Open</Pill>
+                                        </Card>
+                                    </Pressable>
+                                )}
+                                ItemSeparatorComponent={() => <View style={{ height: space.xs }} />}
+                                scrollEnabled={false}
+                            />
+                        </>
                     )}
                 </Card>
             </View>

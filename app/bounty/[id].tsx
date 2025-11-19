@@ -48,7 +48,7 @@ type Submission = {
 
 type SubmissionWithVotes = Submission & { vote_count?: number | null };
 
-const IG_URL_RE = /^https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\/[A-Za-z0-9_-]+\/?/i;
+const IG_URL_RE = /^https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\/[A-Za-z0-9_-]+\/?(?:[?#].*)?$/i;
 const IG_EMBED_RE = /^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)(?:[\/?#]|$)/i;
 
 function fmt(d?: string | null) {
@@ -69,6 +69,20 @@ function extractInstagramEmbed(url?: string | null) {
         mediaUrl: `https://www.instagram.com/${type}/${slug}/media/?size=l`,
         permalink: `https://www.instagram.com/${type}/${slug}/`,
     };
+}
+
+async function fetchInstagramTimestamp(url: string) {
+    const endpoint = `https://www.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+        throw new Error(`Instagram responded with status ${response.status}`);
+    }
+
+    const data = (await response.json()) as { timestamp?: string };
+    if (!data.timestamp) return null;
+
+    const parsed = new Date(data.timestamp);
+    return isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function InstagramEmbed({ url }: { url?: string | null }) {
@@ -137,7 +151,8 @@ export default function BountyDetail() {
     const [spot, setSpot] = useState<Spot | null>(null);
 
     const [igUrl, setIgUrl] = useState('');
-    const [postedAt, setPostedAt] = useState('');
+    const [formError, setFormError] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         if (session) {
@@ -312,33 +327,58 @@ export default function BountyDetail() {
         if (!bountyId) return;
         if (!accepted) return Alert.alert('Accept first', 'Please accept this bounty before submitting proof.');
 
+        setFormError(null);
+        setSubmitting(true);
+
         const url = igUrl.trim();
-        const iso = postedAt.trim();
 
-        if (!url) return Alert.alert('Validation', 'Paste your Instagram post URL.');
-        if (!IG_URL_RE.test(url)) return Alert.alert('Validation', 'That is not a valid Instagram URL.');
+        if (!url) {
+            setFormError('Paste your Instagram post URL.');
+            setSubmitting(false);
+            return;
+        }
+        if (!IG_URL_RE.test(url)) {
+            setFormError('That is not a valid Instagram URL.');
+            setSubmitting(false);
+            return;
+        }
 
-        if (!iso) return Alert.alert('Validation', 'Enter the post ISO timestamp.');
-        const dt = new Date(iso);
-        if (isNaN(dt.getTime())) return Alert.alert('Validation', 'Invalid ISO timestamp.');
-        const isoValue = dt.toISOString();
+        const embed = extractInstagramEmbed(url);
+        if (!embed) {
+            setFormError('Unable to read that Instagram link.');
+            setSubmitting(false);
+            return;
+        }
+
+        let timestamp: string | null = null;
+        try {
+            timestamp = await fetchInstagramTimestamp(embed.permalink);
+            if (!timestamp) {
+                setFormError('Could not find a timestamp on that Instagram post. Submitting without it.');
+            }
+        } catch (err: any) {
+            setFormError(`Could not read Instagram metadata: ${err?.message ?? err}`);
+        }
 
         try {
             const { data, error } = await supabase.rpc('rpc_submit_proof', {
                 p_bounty: bountyId,
-                p_media_url: url,
-                p_external_posted_at: isoValue,
+                p_media_url: embed.permalink,
+                p_external_posted_at: timestamp,
             });
             if (error) throw error;
             setMySubmission(data as Submission);
             setIgUrl('');
-            setPostedAt('');
             await loadAll();
             Alert.alert('Success', 'Submission saved.');
         } catch (err: any) {
-            Alert.alert('Submission failed', err?.message ?? 'Could not submit proof.');
+            const message = err?.message ?? 'Could not submit proof.';
+            setFormError(message);
+            Alert.alert('Submission failed', message);
+        } finally {
+            setSubmitting(false);
         }
-    }, [accepted, bountyId, igUrl, loadAll, postedAt, requireAuth]);
+    }, [accepted, bountyId, igUrl, loadAll, requireAuth]);
 
     const onVote = useCallback(async (submissionId: UUID) => {
         try {
@@ -473,7 +513,7 @@ export default function BountyDetail() {
                             </>
                         ) : (
                             <>
-                                <Muted>Paste the post URL and the ISO timestamp of when it was posted.</Muted>
+                                <Muted>Paste the Instagram post URL. We’ll fetch the timestamp for you.</Muted>
                                 <Input
                                     value={igUrl}
                                     onChangeText={setIgUrl}
@@ -483,16 +523,9 @@ export default function BountyDetail() {
                                     inputMode="url"
                                     editable={!!session}
                                 />
-                                <Input
-                                    value={postedAt}
-                                    onChangeText={setPostedAt}
-                                    placeholder="2025-11-01T20:45:00Z"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    editable={!!session}
-                                />
-                                <Button onPress={onSubmitProof} kind={session ? 'solid' : 'ghost'}>
-                                    {session ? 'Submit' : 'Sign in to submit'}
+                                {formError ? <Badge tone="warning">{formError}</Badge> : null}
+                                <Button onPress={onSubmitProof} kind={session ? 'solid' : 'ghost'} disabled={submitting}>
+                                    {session ? (submitting ? 'Submitting…' : 'Submit') : 'Sign in to submit'}
                                 </Button>
                             </>
                         )}

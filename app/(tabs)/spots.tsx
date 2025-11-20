@@ -19,6 +19,7 @@ export default function SpotsTab() {
     const [lng, setLng] = useState("");
     const [creating, setCreating] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{ title?: string; imageUrl?: string; lat?: string; lng?: string; form?: string }>({});
 
     useEffect(() => {
         (async () => {
@@ -35,23 +36,37 @@ export default function SpotsTab() {
 
     const handleCreateSpot = async () => {
         setFormError(null);
+        setFieldErrors({});
+
+        const errors: { title?: string; imageUrl?: string; lat?: string; lng?: string; form?: string } = {};
         if (!session) {
-            setFormError("You must be signed in to create spots.");
-            return;
+            errors.form = "You must be signed in to create spots.";
         }
         if (!title.trim()) {
-            setFormError("Please enter a title for the spot.");
-            return;
+            errors.title = "Please enter a title for the spot.";
+        }
+
+        if (imageUrl.trim() && !/^https?:\/\//i.test(imageUrl.trim())) {
+            errors.imageUrl = "Image URL must start with http or https.";
         }
 
         const latVal = lat.trim() ? Number(lat.trim()) : null;
         const lngVal = lng.trim() ? Number(lng.trim()) : null;
         if (lat.trim() && Number.isNaN(latVal)) {
-            setFormError("Latitude must be a number.");
-            return;
+            errors.lat = "Latitude must be a number.";
         }
         if (lng.trim() && Number.isNaN(lngVal)) {
-            setFormError("Longitude must be a number.");
+            errors.lng = "Longitude must be a number.";
+        }
+        if ((lat.trim() && !lng.trim()) || (lng.trim() && !lat.trim())) {
+            const message = "Provide both latitude and longitude to add coordinates.";
+            errors.lat = errors.lat ?? message;
+            errors.lng = errors.lng ?? message;
+        }
+
+        if (Object.keys(errors).length) {
+            setFieldErrors(errors);
+            setFormError(errors.form ?? null);
             return;
         }
 
@@ -70,6 +85,7 @@ export default function SpotsTab() {
             setLat("");
             setLng("");
             setFormError(null);
+            setFieldErrors({});
         } catch (e: any) {
             console.log("create spot error", e);
             setFormError(e?.message ?? "Failed to create spot");
@@ -95,6 +111,7 @@ export default function SpotsTab() {
                         value={title}
                         onChangeText={setTitle}
                     />
+                    {fieldErrors.title ? <Text style={styles.inlineError}>{fieldErrors.title}</Text> : null}
                     <Input
                         style={styles.input}
                         placeholder="Image URL (optional)"
@@ -104,6 +121,7 @@ export default function SpotsTab() {
                         autoCapitalize="none"
                         autoCorrect={false}
                     />
+                    {fieldErrors.imageUrl ? <Text style={styles.inlineError}>{fieldErrors.imageUrl}</Text> : null}
                     <Row style={{ gap: space.sm }}>
                         <Input
                             style={[styles.input, { flex: 1 }]}
@@ -122,6 +140,10 @@ export default function SpotsTab() {
                             keyboardType="numeric"
                         />
                     </Row>
+                    {fieldErrors.lat ? <Text style={styles.inlineError}>{fieldErrors.lat}</Text> : null}
+                    {fieldErrors.lng && fieldErrors.lng !== fieldErrors.lat ? (
+                        <Text style={styles.inlineError}>{fieldErrors.lng}</Text>
+                    ) : null}
                     <Muted>
                         Spots now support optional imagery and coordinates to help skaters find the location.
                     </Muted>
@@ -195,6 +217,7 @@ const styles = StyleSheet.create({
     },
     spotTitle: { ...type.h2 },
     meta: { color: palette.textMuted },
+    inlineError: { color: palette.danger, marginTop: -4 },
     error: {
         color: palette.danger,
         backgroundColor: palette.subtle,

@@ -16,7 +16,12 @@ export default function CreateBounty() {
     const [status, setStatus] = useState("open");
     const [loading, setLoading] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [fieldErrors, setFieldErrors] = useState<{ trick?: string; reward?: string; form?: string }>({});
+    const [fieldErrors, setFieldErrors] = useState<{
+        trick?: string;
+        reward?: string;
+        expiresAt?: string;
+        form?: string;
+    }>({});
 
     const [spots, setSpots] = useState<Spot[]>([]);
     const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
@@ -40,7 +45,7 @@ export default function CreateBounty() {
         setFormError(null);
         setFieldErrors({});
 
-        const errors: { trick?: string; reward?: string; form?: string } = {};
+        const errors: { trick?: string; reward?: string; expiresAt?: string; form?: string } = {};
 
         if (!session) {
             errors.form = "You must be signed in to create bounties.";
@@ -51,8 +56,19 @@ export default function CreateBounty() {
         }
 
         const rewardVal = reward.trim() ? Number(reward.trim()) : null;
-        if (reward.trim() && Number.isNaN(rewardVal)) {
-            errors.reward = "Reward must be a number if provided.";
+        if (reward.trim()) {
+            if (Number.isNaN(rewardVal)) {
+                errors.reward = "Reward must be a number if provided.";
+            } else if (rewardVal !== null && rewardVal < 0) {
+                errors.reward = "Reward cannot be negative.";
+            }
+        }
+
+        if (expiresAt.trim()) {
+            const parsed = new Date(expiresAt.trim());
+            if (Number.isNaN(parsed.getTime())) {
+                errors.expiresAt = "Expiration must be a valid date/time (ISO recommended).";
+            }
         }
 
         if (Object.keys(errors).length) {
@@ -208,6 +224,7 @@ export default function CreateBounty() {
                             autoCorrect={false}
                         />
                         <Muted>Set status and optional expiration to communicate availability.</Muted>
+                        {fieldErrors.expiresAt ? <Text style={styles.inlineError}>{fieldErrors.expiresAt}</Text> : null}
                     </Card>
 
                     {formError ? <Text style={styles.error}>{formError}</Text> : null}

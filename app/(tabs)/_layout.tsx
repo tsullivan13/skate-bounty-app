@@ -3,6 +3,7 @@ import { Redirect, Tabs } from "expo-router";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { palette } from "../../constants/theme";
+import { HeaderLogo } from "../../src/components/HeaderLogo";
 import { useAuth } from "../../src/providers/AuthProvider";
 
 export default function TabsLayout() {
@@ -17,6 +18,16 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: palette.card },
         headerTintColor: palette.text,
         headerTitleStyle: { fontWeight: "800" },
+        headerTitle: () => {
+          const titles: Record<string, string> = {
+            index: "Skate Bounty",
+            create: "Create Bounty",
+            spots: "Spots",
+            profile: "My Profile",
+          };
+
+          return <HeaderLogo title={titles[route.name] ?? route.name} centered />;
+        },
         tabBarStyle: { backgroundColor: palette.card, borderTopColor: palette.outline },
         tabBarActiveTintColor: palette.primary,
         tabBarInactiveTintColor: palette.textMuted,
@@ -40,10 +51,10 @@ export default function TabsLayout() {
         },
       })}
     >
-      <Tabs.Screen name="index" options={{ title: "Home", headerTitle: "Skate Bounty" }} />
-      <Tabs.Screen name="create" options={{ title: "Create", headerTitle: "Create Bounty" }} />
-      <Tabs.Screen name="spots" options={{ title: "Spots", headerTitle: "Spots" }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile", headerTitle: "My Profile" }} />
+      <Tabs.Screen name="index" options={{ title: "Skate Bounty" }} />
+      <Tabs.Screen name="create" options={{ title: "Create Bounty" }} />
+      <Tabs.Screen name="spots" options={{ title: "Spots" }} />
+      <Tabs.Screen name="profile" options={{ title: "My Profile" }} />
     </Tabs>
   );
 }

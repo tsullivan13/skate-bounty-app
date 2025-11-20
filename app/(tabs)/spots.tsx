@@ -21,6 +21,9 @@ export default function SpotsTab() {
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<{ title?: string; imageUrl?: string; lat?: string; lng?: string; form?: string }>({});
 
+    const [search, setSearch] = useState("");
+    const [coordsOnly, setCoordsOnly] = useState(false);
+
     useEffect(() => {
         (async () => {
             try {
@@ -97,10 +100,55 @@ export default function SpotsTab() {
 
     const hasAnyCoords = useMemo(() => spots.some((s) => (s.lat ?? null) !== null && (s.lng ?? null) !== null), [spots]);
 
+    const filteredSpots = useMemo(() => {
+        const query = search.trim().toLowerCase();
+        return spots.filter((spot) => {
+            if (coordsOnly && ((spot.lat ?? null) === null || (spot.lng ?? null) === null)) return false;
+            if (!query) return true;
+
+            return [spot.title, spot.image_url]
+                .filter(Boolean)
+                .some((field) => String(field).toLowerCase().includes(query));
+        });
+    }, [coordsOnly, search, spots]);
+
     return (
         <Screen>
             <View style={{ gap: space.md }}>
                 <Title>Spots</Title>
+
+                <Card elevated style={{ gap: space.sm }}>
+                    <H2>Find a spot fast</H2>
+                    <Row style={{ gap: space.sm }}>
+                        <Input
+                            style={[styles.input, { flex: 1 }]}
+                            placeholder="Search by title or image URL"
+                            placeholderTextColor={palette.textMuted}
+                            value={search}
+                            onChangeText={setSearch}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        {search ? (
+                            <Pressable onPress={() => setSearch("")} style={styles.clearButton}>
+                                <Text style={styles.clearLabel}>Clear</Text>
+                            </Pressable>
+                        ) : null}
+                    </Row>
+                    {hasAnyCoords ? (
+                        <Pressable
+                            onPress={() => setCoordsOnly((prev) => !prev)}
+                            style={[styles.toggle, coordsOnly && styles.toggleActive]}
+                        >
+                            <Text style={[styles.toggleLabel, coordsOnly && styles.toggleLabelActive]}>
+                                {coordsOnly ? "Showing mapped spots" : "Tap to show only mapped spots"}
+                            </Text>
+                        </Pressable>
+                    ) : null}
+                    <Muted>
+                        Quick filtering helps crews jump to mapped locations and keep the list readable during sessions.
+                    </Muted>
+                </Card>
 
                 <Card elevated style={{ gap: space.sm }}>
                     <H2>Share a spot</H2>
@@ -159,13 +207,17 @@ export default function SpotsTab() {
                     <H2>Community spots</H2>
                     {loading ? (
                         <Muted>Loading spots…</Muted>
-                    ) : spots.length === 0 ? (
+                    ) : filteredSpots.length === 0 ? (
                         <Muted>No spots yet. Be the first to share one.</Muted>
                     ) : (
                         <>
                             {hasAnyCoords ? <Muted>Tap a spot to open full details and linked bounties.</Muted> : null}
+                            <Muted>
+                                Showing {filteredSpots.length} of {spots.length} shared spots
+                                {coordsOnly ? " with coordinates" : ""}.
+                            </Muted>
                             <FlatList
-                                data={spots}
+                                data={filteredSpots}
                                 keyExtractor={(s) => s.id}
                                 renderItem={({ item }) => (
                                     <Pressable
@@ -209,6 +261,14 @@ const styles = StyleSheet.create({
         backgroundColor: palette.subtle,
         color: palette.text,
     },
+    clearButton: {
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+    },
+    clearLabel: {
+        color: palette.accent,
+        fontWeight: "700",
+    },
     spotCard: {
         flexDirection: "row",
         alignItems: "center",
@@ -223,5 +283,24 @@ const styles = StyleSheet.create({
         backgroundColor: palette.subtle,
         borderRadius: radius.md,
         padding: space.sm,
+    },
+    toggle: {
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: palette.outline,
+        backgroundColor: palette.subtle,
+    },
+    toggleActive: {
+        backgroundColor: palette.cardElevated,
+        borderColor: palette.primary,
+    },
+    toggleLabel: {
+        color: palette.textMuted,
+        fontWeight: "700",
+    },
+    toggleLabelActive: {
+        color: palette.text,
     },
 });

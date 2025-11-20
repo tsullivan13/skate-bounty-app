@@ -410,7 +410,7 @@ export default function BountyDetail() {
         } finally {
             setSubmitting(false);
         }
-    }, [accepted, bountyId, igUrl, loadAll, requireAuth]);
+    }, [accepted, bountyId, igUrl, loadAll, requireAuth, validateIgUrl]);
 
     const onVote = useCallback(async (submissionId: UUID) => {
         try {

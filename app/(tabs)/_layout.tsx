@@ -42,10 +42,10 @@ export default function TabsLayout() {
         },
       })}
     >
-      <Tabs.Screen name="index" options={{ title: "Home", headerTitle: "Skate Bounty" }} />
-      <Tabs.Screen name="create" options={{ title: "Create", headerTitle: "Create Bounty" }} />
-      <Tabs.Screen name="spots" options={{ title: "Spots", headerTitle: "Spots" }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile", headerTitle: "My Profile" }} />
+      <Tabs.Screen name="index" options={{ title: "Skate Bounty" }} />
+      <Tabs.Screen name="create" options={{ title: "Create Bounty" }} />
+      <Tabs.Screen name="spots" options={{ title: "Spots" }} />
+      <Tabs.Screen name="profile" options={{ title: "My Profile" }} />
     </Tabs>
   );
 }

@@ -157,6 +157,7 @@ export default function BountyDetail() {
     const [igUrl, setIgUrl] = useState('');
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<{ igUrl?: string; form?: string }>({});
+    const [igTouched, setIgTouched] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
     const validateIgUrl = useCallback((value: string) => {
@@ -177,6 +178,12 @@ export default function BountyDetail() {
         },
         [validateIgUrl],
     );
+
+    const handleIgUrlBlur = useCallback(() => {
+        setIgTouched(true);
+        const message = validateIgUrl(igUrl);
+        setFieldErrors((prev) => ({ ...prev, igUrl: message ?? undefined }));
+    }, [igUrl, validateIgUrl]);
 
     useEffect(() => {
         if (session) {
@@ -352,6 +359,7 @@ export default function BountyDetail() {
         if (!accepted) return Alert.alert('Accept first', 'Please accept this bounty before submitting proof.');
 
         setFormError(null);
+        setIgTouched(true);
         setFieldErrors((prev) => ({ ...prev, igUrl: undefined }));
         setSubmitting(true);
 
@@ -541,13 +549,15 @@ export default function BountyDetail() {
                                 <Input
                                     value={igUrl}
                                     onChangeText={handleIgUrlChange}
+                                    onBlur={handleIgUrlBlur}
                                     placeholder="https://instagram.com/p/abc123"
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     inputMode="url"
                                     editable={!!session && !submitting}
+                                    style={igTouched && fieldErrors.igUrl ? styles.inputError : undefined}
                                 />
-                                {fieldErrors.igUrl ? (
+                                {igTouched && fieldErrors.igUrl ? (
                                     <Text style={styles.inlineError}>{fieldErrors.igUrl}</Text>
                                 ) : null}
                                 {formError ? <Badge tone="warning">{formError}</Badge> : null}
@@ -596,4 +606,5 @@ export default function BountyDetail() {
 
 const styles = StyleSheet.create({
     inlineError: { color: palette.danger, marginTop: 4 },
+    inputError: { borderColor: palette.danger, shadowColor: palette.danger },
 });

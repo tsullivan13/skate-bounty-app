@@ -33,6 +33,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
+        alignSelf: "flex-start",
     },
     pressed: {
         opacity: 0.75,
@@ -54,6 +55,7 @@ const styles = StyleSheet.create({
         color: palette.text,
         fontWeight: "800",
         fontSize: 18,
+        flexShrink: 1,
     },
 });
 

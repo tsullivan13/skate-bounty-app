@@ -14,11 +14,21 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={({ route }) => ({
-        headerTitleAlign: "center",
+        headerTitleAlign: "left",
         headerStyle: { backgroundColor: palette.card },
         headerTintColor: palette.text,
         headerTitleStyle: { fontWeight: "800" },
-        headerTitle: ({ children }) => <HeaderLogo title={String(children)} />,
+        headerTitle: "",
+        headerLeft: () => {
+          const titles: Record<string, string> = {
+            index: "Skate Bounty",
+            create: "Create Bounty",
+            spots: "Spots",
+            profile: "My Profile",
+          };
+
+          return <HeaderLogo title={titles[route.name] ?? route.name} />;
+        },
         tabBarStyle: { backgroundColor: palette.card, borderTopColor: palette.outline },
         tabBarActiveTintColor: palette.primary,
         tabBarInactiveTintColor: palette.textMuted,

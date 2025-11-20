@@ -16,6 +16,7 @@ export default function CreateBounty() {
     const [status, setStatus] = useState("open");
     const [loading, setLoading] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{ trick?: string; reward?: string; form?: string }>({});
 
     const [spots, setSpots] = useState<Spot[]>([]);
     const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
@@ -37,13 +38,26 @@ export default function CreateBounty() {
 
     const submit = async () => {
         setFormError(null);
+        setFieldErrors({});
+
+        const errors: { trick?: string; reward?: string; form?: string } = {};
+
         if (!session) {
-            setFormError("You must be signed in to create bounties.");
-            return;
+            errors.form = "You must be signed in to create bounties.";
         }
 
         if (!trick.trim()) {
-            setFormError("Please enter a trick.");
+            errors.trick = "Please enter a trick.";
+        }
+
+        const rewardVal = reward.trim() ? Number(reward.trim()) : null;
+        if (reward.trim() && Number.isNaN(rewardVal)) {
+            errors.reward = "Reward must be a number if provided.";
+        }
+
+        if (Object.keys(errors).length) {
+            setFieldErrors(errors);
+            setFormError(errors.form ?? null);
             return;
         }
 
@@ -51,11 +65,6 @@ export default function CreateBounty() {
         try {
             const trickText = trick.trim();
             const rewardVal = reward.trim() ? Number(reward.trim()) : null;
-            if (reward.trim() && Number.isNaN(rewardVal)) {
-                setFormError("Reward must be a number if provided.");
-                setLoading(false);
-                return;
-            }
 
             await createBounty(session, {
                 trick: trickText,
@@ -72,6 +81,7 @@ export default function CreateBounty() {
             setRewardType("cash");
             setStatus("open");
             setFormError(null);
+            setFieldErrors({});
             Alert.alert("Created", "Bounty created successfully.");
         } catch (e: any) {
             console.log("create bounty error", e);
@@ -114,6 +124,7 @@ export default function CreateBounty() {
                             onChangeText={setTrick}
                             autoCapitalize="sentences"
                         />
+                        {fieldErrors.trick ? <Text style={styles.inlineError}>{fieldErrors.trick}</Text> : null}
                         <Input
                             placeholder="Reward amount (numeric)"
                             placeholderTextColor={palette.textMuted}
@@ -121,6 +132,7 @@ export default function CreateBounty() {
                             onChangeText={setReward}
                             keyboardType="numeric"
                         />
+                        {fieldErrors.reward ? <Text style={styles.inlineError}>{fieldErrors.reward}</Text> : null}
                         <Muted>
                             Add a clear description of the challenge and what you are offering to make it feel
                             official.
@@ -248,6 +260,7 @@ const styles = StyleSheet.create({
         borderColor: palette.primary,
     },
     chipLabel: { color: palette.text, fontWeight: "700", textTransform: "capitalize" },
+    inlineError: { color: palette.danger, marginTop: -4 },
     error: {
         color: palette.danger,
         backgroundColor: palette.subtle,

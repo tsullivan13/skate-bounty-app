@@ -2,7 +2,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
     Badge,
     Button,
@@ -20,6 +20,7 @@ import { fetchProfilesByIds, Profile } from '../../src/lib/profiles';
 import { supabase } from '../../src/lib/supabase';
 import { fetchSpotById, Spot } from '../../src/lib/spots';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { palette } from '../../constants/theme';
 
 type UUID = string;
 
@@ -155,7 +156,27 @@ export default function BountyDetail() {
 
     const [igUrl, setIgUrl] = useState('');
     const [formError, setFormError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{ igUrl?: string; form?: string }>({});
     const [submitting, setSubmitting] = useState(false);
+
+    const validateIgUrl = useCallback((value: string) => {
+        const trimmed = value.trim();
+        if (!trimmed) return 'Paste your Instagram post URL.';
+        if (!IG_URL_RE.test(trimmed)) return 'That is not a valid Instagram URL.';
+        return null;
+    }, []);
+
+    const handleIgUrlChange = useCallback(
+        (value: string) => {
+            setIgUrl(value);
+            const message = validateIgUrl(value);
+            setFieldErrors((prev) => ({ ...prev, igUrl: message ?? undefined }));
+            if (!message) {
+                setFormError(null);
+            }
+        },
+        [validateIgUrl],
+    );
 
     useEffect(() => {
         if (session) {
@@ -331,23 +352,21 @@ export default function BountyDetail() {
         if (!accepted) return Alert.alert('Accept first', 'Please accept this bounty before submitting proof.');
 
         setFormError(null);
+        setFieldErrors((prev) => ({ ...prev, igUrl: undefined }));
         setSubmitting(true);
 
         const url = igUrl.trim();
-
-        if (!url) {
-            setFormError('Paste your Instagram post URL.');
-            setSubmitting(false);
-            return;
-        }
-        if (!IG_URL_RE.test(url)) {
-            setFormError('That is not a valid Instagram URL.');
+        const validationMessage = validateIgUrl(url);
+        if (validationMessage) {
+            setFieldErrors((prev) => ({ ...prev, igUrl: validationMessage, form: validationMessage }));
+            setFormError(validationMessage);
             setSubmitting(false);
             return;
         }
 
         const embed = extractInstagramEmbed(url);
         if (!embed) {
+            setFieldErrors({ igUrl: 'Unable to read that Instagram link.', form: 'Unable to read that Instagram link.' });
             setFormError('Unable to read that Instagram link.');
             setSubmitting(false);
             return;
@@ -360,6 +379,7 @@ export default function BountyDetail() {
                 setFormError('Could not find a timestamp on that Instagram post. Submitting without it.');
             }
         } catch (err: any) {
+            setFieldErrors((prev) => ({ ...prev, igUrl: 'Could not read Instagram metadata.' }));
             setFormError(`Could not read Instagram metadata: ${err?.message ?? err}`);
         }
 
@@ -372,6 +392,7 @@ export default function BountyDetail() {
             if (error) throw error;
             setMySubmission(data as Submission);
             setIgUrl('');
+            setFieldErrors({});
             await loadAll();
             Alert.alert('Success', 'Submission saved.');
         } catch (err: any) {
@@ -519,13 +540,16 @@ export default function BountyDetail() {
                                 <Muted>Paste the Instagram post URL. We’ll fetch the timestamp for you.</Muted>
                                 <Input
                                     value={igUrl}
-                                    onChangeText={setIgUrl}
+                                    onChangeText={handleIgUrlChange}
                                     placeholder="https://instagram.com/p/abc123"
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     inputMode="url"
-                                    editable={!!session}
+                                    editable={!!session && !submitting}
                                 />
+                                {fieldErrors.igUrl ? (
+                                    <Text style={styles.inlineError}>{fieldErrors.igUrl}</Text>
+                                ) : null}
                                 {formError ? <Badge tone="warning">{formError}</Badge> : null}
                                 <Button onPress={onSubmitProof} kind={session ? 'solid' : 'ghost'} disabled={submitting}>
                                     {session ? (submitting ? 'Submitting…' : 'Submit') : 'Sign in to submit'}
@@ -569,3 +593,7 @@ export default function BountyDetail() {
         </KeyboardAvoidingView>
     );
 }
+
+const styles = StyleSheet.create({
+    inlineError: { color: palette.danger, marginTop: 4 },
+});

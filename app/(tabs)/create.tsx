@@ -15,6 +15,13 @@ export default function CreateBounty() {
     const [expiresAt, setExpiresAt] = useState("");
     const [status, setStatus] = useState("open");
     const [loading, setLoading] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{
+        trick?: string;
+        reward?: string;
+        expiresAt?: string;
+        form?: string;
+    }>({});
 
     const [spots, setSpots] = useState<Spot[]>([]);
     const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
@@ -35,13 +42,38 @@ export default function CreateBounty() {
     }, []);
 
     const submit = async () => {
+        setFormError(null);
+        setFieldErrors({});
+
+        const errors: { trick?: string; reward?: string; expiresAt?: string; form?: string } = {};
+
         if (!session) {
-            Alert.alert("Auth required", "You must be signed in to create bounties.");
-            return;
+            errors.form = "You must be signed in to create bounties.";
         }
 
         if (!trick.trim()) {
-            Alert.alert("Missing fields", "Please enter a trick.");
+            errors.trick = "Please enter a trick.";
+        }
+
+        const rewardVal = reward.trim() ? Number(reward.trim()) : null;
+        if (reward.trim()) {
+            if (Number.isNaN(rewardVal)) {
+                errors.reward = "Reward must be a number if provided.";
+            } else if (rewardVal !== null && rewardVal < 0) {
+                errors.reward = "Reward cannot be negative.";
+            }
+        }
+
+        if (expiresAt.trim()) {
+            const parsed = new Date(expiresAt.trim());
+            if (Number.isNaN(parsed.getTime())) {
+                errors.expiresAt = "Expiration must be a valid date/time (ISO recommended).";
+            }
+        }
+
+        if (Object.keys(errors).length) {
+            setFieldErrors(errors);
+            setFormError(errors.form ?? null);
             return;
         }
 
@@ -49,11 +81,6 @@ export default function CreateBounty() {
         try {
             const trickText = trick.trim();
             const rewardVal = reward.trim() ? Number(reward.trim()) : null;
-            if (reward.trim() && Number.isNaN(rewardVal)) {
-                Alert.alert("Invalid reward", "Reward must be a number if provided.");
-                setLoading(false);
-                return;
-            }
 
             await createBounty(session, {
                 trick: trickText,
@@ -69,9 +96,12 @@ export default function CreateBounty() {
             setExpiresAt("");
             setRewardType("cash");
             setStatus("open");
+            setFormError(null);
+            setFieldErrors({});
             Alert.alert("Created", "Bounty created successfully.");
         } catch (e: any) {
             console.log("create bounty error", e);
+            setFormError(e?.message ?? "Failed to create bounty");
             Alert.alert("Error", e?.message ?? "Failed to create bounty");
         } finally {
             setLoading(false);
@@ -110,6 +140,7 @@ export default function CreateBounty() {
                             onChangeText={setTrick}
                             autoCapitalize="sentences"
                         />
+                        {fieldErrors.trick ? <Text style={styles.inlineError}>{fieldErrors.trick}</Text> : null}
                         <Input
                             placeholder="Reward amount (numeric)"
                             placeholderTextColor={palette.textMuted}
@@ -117,6 +148,7 @@ export default function CreateBounty() {
                             onChangeText={setReward}
                             keyboardType="numeric"
                         />
+                        {fieldErrors.reward ? <Text style={styles.inlineError}>{fieldErrors.reward}</Text> : null}
                         <Muted>
                             Add a clear description of the challenge and what you are offering to make it feel
                             official.
@@ -192,7 +224,10 @@ export default function CreateBounty() {
                             autoCorrect={false}
                         />
                         <Muted>Set status and optional expiration to communicate availability.</Muted>
+                        {fieldErrors.expiresAt ? <Text style={styles.inlineError}>{fieldErrors.expiresAt}</Text> : null}
                     </Card>
+
+                    {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
                     <Button onPress={submit} loading={loading}>
                         Create bounty
@@ -242,4 +277,11 @@ const styles = StyleSheet.create({
         borderColor: palette.primary,
     },
     chipLabel: { color: palette.text, fontWeight: "700", textTransform: "capitalize" },
+    inlineError: { color: palette.danger, marginTop: -4 },
+    error: {
+        color: palette.danger,
+        backgroundColor: palette.subtle,
+        borderRadius: radius.md,
+        padding: space.sm,
+    },
 });

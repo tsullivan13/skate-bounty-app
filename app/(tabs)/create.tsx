@@ -15,6 +15,7 @@ export default function CreateBounty() {
     const [expiresAt, setExpiresAt] = useState("");
     const [status, setStatus] = useState("open");
     const [loading, setLoading] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
 
     const [spots, setSpots] = useState<Spot[]>([]);
     const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
@@ -35,13 +36,14 @@ export default function CreateBounty() {
     }, []);
 
     const submit = async () => {
+        setFormError(null);
         if (!session) {
-            Alert.alert("Auth required", "You must be signed in to create bounties.");
+            setFormError("You must be signed in to create bounties.");
             return;
         }
 
         if (!trick.trim()) {
-            Alert.alert("Missing fields", "Please enter a trick.");
+            setFormError("Please enter a trick.");
             return;
         }
 
@@ -50,7 +52,7 @@ export default function CreateBounty() {
             const trickText = trick.trim();
             const rewardVal = reward.trim() ? Number(reward.trim()) : null;
             if (reward.trim() && Number.isNaN(rewardVal)) {
-                Alert.alert("Invalid reward", "Reward must be a number if provided.");
+                setFormError("Reward must be a number if provided.");
                 setLoading(false);
                 return;
             }
@@ -69,9 +71,11 @@ export default function CreateBounty() {
             setExpiresAt("");
             setRewardType("cash");
             setStatus("open");
+            setFormError(null);
             Alert.alert("Created", "Bounty created successfully.");
         } catch (e: any) {
             console.log("create bounty error", e);
+            setFormError(e?.message ?? "Failed to create bounty");
             Alert.alert("Error", e?.message ?? "Failed to create bounty");
         } finally {
             setLoading(false);
@@ -194,6 +198,8 @@ export default function CreateBounty() {
                         <Muted>Set status and optional expiration to communicate availability.</Muted>
                     </Card>
 
+                    {formError ? <Text style={styles.error}>{formError}</Text> : null}
+
                     <Button onPress={submit} loading={loading}>
                         Create bounty
                     </Button>
@@ -242,4 +248,10 @@ const styles = StyleSheet.create({
         borderColor: palette.primary,
     },
     chipLabel: { color: palette.text, fontWeight: "700", textTransform: "capitalize" },
+    error: {
+        color: palette.danger,
+        backgroundColor: palette.subtle,
+        borderRadius: radius.md,
+        padding: space.sm,
+    },
 });

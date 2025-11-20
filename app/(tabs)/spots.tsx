@@ -18,6 +18,7 @@ export default function SpotsTab() {
     const [lat, setLat] = useState("");
     const [lng, setLng] = useState("");
     const [creating, setCreating] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
 
     useEffect(() => {
         (async () => {
@@ -33,23 +34,24 @@ export default function SpotsTab() {
     }, []);
 
     const handleCreateSpot = async () => {
+        setFormError(null);
         if (!session) {
-            Alert.alert("Auth required", "You must be signed in to create spots.");
+            setFormError("You must be signed in to create spots.");
             return;
         }
         if (!title.trim()) {
-            Alert.alert("Missing title", "Please enter a title for the spot.");
+            setFormError("Please enter a title for the spot.");
             return;
         }
 
         const latVal = lat.trim() ? Number(lat.trim()) : null;
         const lngVal = lng.trim() ? Number(lng.trim()) : null;
         if (lat.trim() && Number.isNaN(latVal)) {
-            Alert.alert("Invalid latitude", "Latitude must be a number.");
+            setFormError("Latitude must be a number.");
             return;
         }
         if (lng.trim() && Number.isNaN(lngVal)) {
-            Alert.alert("Invalid longitude", "Longitude must be a number.");
+            setFormError("Longitude must be a number.");
             return;
         }
 
@@ -67,8 +69,10 @@ export default function SpotsTab() {
             setImageUrl("");
             setLat("");
             setLng("");
+            setFormError(null);
         } catch (e: any) {
             console.log("create spot error", e);
+            setFormError(e?.message ?? "Failed to create spot");
             Alert.alert("Error", e?.message ?? "Failed to create spot");
         } finally {
             setCreating(false);
@@ -121,6 +125,7 @@ export default function SpotsTab() {
                     <Muted>
                         Spots now support optional imagery and coordinates to help skaters find the location.
                     </Muted>
+                    {formError ? <Text style={styles.error}>{formError}</Text> : null}
                     <Row style={{ justifyContent: "flex-end" }}>
                         <Button onPress={handleCreateSpot} loading={creating}>
                             Create spot
@@ -190,4 +195,10 @@ const styles = StyleSheet.create({
     },
     spotTitle: { ...type.h2 },
     meta: { color: palette.textMuted },
+    error: {
+        color: palette.danger,
+        backgroundColor: palette.subtle,
+        borderRadius: radius.md,
+        padding: space.sm,
+    },
 });

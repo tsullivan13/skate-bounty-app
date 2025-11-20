@@ -3,6 +3,7 @@ import { Redirect, Tabs } from "expo-router";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { palette } from "../../constants/theme";
+import { HeaderLogo } from "../../src/components/HeaderLogo";
 import { useAuth } from "../../src/providers/AuthProvider";
 
 export default function TabsLayout() {
@@ -17,6 +18,7 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: palette.card },
         headerTintColor: palette.text,
         headerTitleStyle: { fontWeight: "800" },
+        headerTitle: ({ children }) => <HeaderLogo title={String(children)} />,
         tabBarStyle: { backgroundColor: palette.card, borderTopColor: palette.outline },
         tabBarActiveTintColor: palette.primary,
         tabBarInactiveTintColor: palette.textMuted,

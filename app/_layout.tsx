@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import React from 'react';
 import { StatusBar } from 'react-native';
 import { palette } from '../constants/theme';
+import { HeaderLogo } from '../src/components/HeaderLogo';
 import { AuthProvider } from '../src/providers/AuthProvider';
 
 export default function RootLayout() {
@@ -13,11 +14,28 @@ export default function RootLayout() {
         screenOptions={{
           contentStyle: { backgroundColor: palette.bg },
           headerShown: false,
+          headerStyle: { backgroundColor: palette.card },
+          headerTintColor: palette.text,
+          headerTitleAlign: 'center',
         }}
       >
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="bounty/[id]" options={{ headerShown: true, title: 'Bounty' }} />
-        <Stack.Screen name="spot/[id]" options={{ headerShown: true, title: 'Spot' }} />
+        <Stack.Screen
+          name="bounty/[id]"
+          options={{
+            headerShown: true,
+            title: 'Bounty',
+            headerTitle: ({ children }) => <HeaderLogo title={String(children)} />,
+          }}
+        />
+        <Stack.Screen
+          name="spot/[id]"
+          options={{
+            headerShown: true,
+            title: 'Spot',
+            headerTitle: ({ children }) => <HeaderLogo title={String(children)} />,
+          }}
+        />
         <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack>
     </AuthProvider>

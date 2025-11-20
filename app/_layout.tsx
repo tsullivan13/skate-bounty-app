@@ -25,8 +25,8 @@ export default function RootLayout() {
           options={{
             headerShown: true,
             title: 'Bounty',
-            headerTitle: '',
-            headerLeft: () => <HeaderLogo title="Bounty" />,
+            headerTitle: () => <HeaderLogo title="Bounty" centered />,
+            headerLeft: () => null,
           }}
         />
         <Stack.Screen
@@ -34,8 +34,8 @@ export default function RootLayout() {
           options={{
             headerShown: true,
             title: 'Spot',
-            headerTitle: '',
-            headerLeft: () => <HeaderLogo title="Spot" />,
+            headerTitle: () => <HeaderLogo title="Spot" centered />,
+            headerLeft: () => null,
           }}
         />
         <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />

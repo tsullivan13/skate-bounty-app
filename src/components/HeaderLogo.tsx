@@ -1,12 +1,17 @@
 // src/components/HeaderLogo.tsx
 import { useRouter } from "expo-router";
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { palette } from "../../constants/theme";
 
 const logo = require("../../assets/images/icon.png");
 
-export function HeaderLogo({ title }: { title?: string }) {
+type HeaderLogoProps = {
+    title?: string;
+    centered?: boolean;
+};
+
+export function HeaderLogo({ title, centered }: HeaderLogoProps) {
     const router = useRouter();
 
     const goHome = () => {
@@ -18,7 +23,7 @@ export function HeaderLogo({ title }: { title?: string }) {
             onPress={goHome}
             accessibilityRole="button"
             accessibilityLabel="Go to home"
-            style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.container, centered && styles.centered, pressed && styles.pressed]}
         >
             <View style={styles.logoWrapper}>
                 <Image source={logo} style={styles.logo} resizeMode="contain" />
@@ -34,7 +39,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 10,
         alignSelf: "flex-start",
+        justifyContent: "center",
+        paddingHorizontal: 6,
     },
+    centered: {
+        alignSelf: "center",
+    } satisfies ViewStyle,
     pressed: {
         opacity: 0.75,
     },

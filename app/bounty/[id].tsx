@@ -20,7 +20,7 @@ import { fetchProfilesByIds, Profile } from '../../src/lib/profiles';
 import { supabase } from '../../src/lib/supabase';
 import { fetchSpotById, Spot } from '../../src/lib/spots';
 import { useAuth } from '../../src/providers/AuthProvider';
-import { palette } from '../../constants/theme';
+import { palette, space } from '../../constants/theme';
 
 type UUID = string;
 
@@ -153,6 +153,7 @@ export default function BountyDetail() {
     const [loading, setLoading] = useState(true);
     const [profiles, setProfiles] = useState<Record<string, Profile>>({});
     const [spot, setSpot] = useState<Spot | null>(null);
+    const [statusUpdating, setStatusUpdating] = useState(false);
 
     const [igUrl, setIgUrl] = useState('');
     const [formError, setFormError] = useState<string | null>(null);
@@ -192,6 +193,12 @@ export default function BountyDetail() {
             setMe(null);
         }
     }, [session]);
+
+    const isOwner = useMemo(() => session?.user?.id === bounty?.user_id, [bounty, session]);
+    const nextStatus = useMemo(() => {
+        const current = (bounty?.status ?? "open").toLowerCase();
+        return current === "closed" ? "open" : "closed";
+    }, [bounty]);
 
     const loadMe = useCallback(async () => {
         const { data, error } = await supabase.auth.getUser();
@@ -353,6 +360,28 @@ export default function BountyDetail() {
         }
     }, [bountyId, requireAuth]);
 
+    const onToggleStatus = useCallback(async () => {
+        if (!bountyId || !bounty) return;
+        if (!isOwner) return Alert.alert('Owner only', 'Only the creator can update the bounty status.');
+        setStatusUpdating(true);
+        const target = nextStatus;
+        try {
+            const { data, error } = await supabase
+                .from('bounties')
+                .update({ status: target })
+                .eq('id', bountyId)
+                .select()
+                .single();
+            if (error) throw error;
+            setBounty(data as Bounty);
+            Alert.alert('Status updated', `Bounty marked as ${target}.`);
+        } catch (err: any) {
+            Alert.alert('Error', err?.message ?? 'Could not update bounty status');
+        } finally {
+            setStatusUpdating(false);
+        }
+    }, [bounty, bountyId, isOwner, nextStatus]);
+
     const onSubmitProof = useCallback(async () => {
         if (!requireAuth()) return;
         if (!bountyId) return;
@@ -508,6 +537,19 @@ export default function BountyDetail() {
                     </Row>
 
                     <Muted>Posted by {displayName(bounty.user_id)}</Muted>
+
+                    {isOwner ? (
+                        <Card elevated style={{ gap: space.sm }}>
+                            <H2>Manage status</H2>
+                            <Muted>Toggle the bounty when it wraps so skaters know if it is still active.</Muted>
+                            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Pill>Current: {bounty.status ?? 'open'}</Pill>
+                                <Button onPress={onToggleStatus} loading={statusUpdating}>
+                                    Mark {nextStatus === 'closed' ? 'closed' : 'open'}
+                                </Button>
+                            </Row>
+                        </Card>
+                    ) : null}
 
                     {!accepted ? (
                         <Button onPress={onAccept} kind={session ? 'solid' : 'ghost'}>
